@@ -7,7 +7,8 @@
 
 **No model attribution in commits.** Do not include `Co-Authored-By:` trailers with the model's name, "Generated with …" footers, or any line identifying the agent that produced the commit. The commit is yours.
 
-**palette note.** `_palette/` (the palette backlog and stories) is the developer's personal planning record and is **not** auto-committed by the agent. `palette-init` offers a `_palette/.gitignore`; a developer who wants to track or share it commits it themselves. See `kimi-agent-kit--palette.md`.
+
+`_palette/` is never auto-committed by the agent (`kimi-agent-kit--palette.md` § Gate bindings).
 
 ## Commit Message Format
 
@@ -61,4 +62,4 @@ refactor(vfs): split main.rs into 13 modules
 
 ## Destructive Git Operations
 
-Destructive git operations (`git reset --hard`, `git checkout -- <file>`, `git restore <file>`, `git clean -f*`, `git stash drop`, `git branch -D`, `git revert`, `git push --force*`, `git rebase` rewriting history) require the same approval gate as session edits: surface the command, the blast radius, the files / commits / branches it would touch, and wait for explicit per-command authorization. They are NEVER a substitute for editing files back when the user asks for a session-edit "undo" — see `kimi-agent-kit--task-execution.md` → *Undo / Revert Handling*.
+Destructive git routes through GATE-GIT (`kimi-agent-kit--task-execution.md` → *Undo / Revert Handling* subsection C): explicitly named command only, blast-radius pre-flight, per-command authorization. Never a substitute for editing files back when the user asks for a session-edit "undo" (INV-STATE-2).

@@ -1,6 +1,6 @@
 param(
     [switch]$Uninstall,
-    [string]$KimiCodeHome = "$env:USERPROFILE\.kimi-code",
+    [string]$KimiCodeHome = "$env:USERPROFILE.kimi-code",
     [string]$Repo = "saltyming/kimi-agent-kit",
     [string]$Branch = "main"
 )
@@ -11,9 +11,11 @@ $RawBase = "https://raw.githubusercontent.com/$Repo/$Branch"
 $AgentsFile = Join-Path $KimiCodeHome "AGENTS.md"
 $RulesDir = Join-Path $KimiCodeHome "rules"
 $SkillsDir = Join-Path $KimiCodeHome "skills"
-$Manifest = Join-Path $KimiCodeHome ".kimi-agent-kit-manifest"
+$Manifest = Join-Path $KimiCodeHome ".kimi-code-agent-kit-manifest"
 
+# Concat order matters: the manual first, then the surface binding, then policy.
 $RuleFiles = @(
+    "kimi-agent-kit--kimi-surface.md",
     "kimi-agent-kit--task-execution.md",
     "kimi-agent-kit--palette.md",
     "kimi-agent-kit--delegation.md",
@@ -34,14 +36,28 @@ if ($Uninstall) {
         Write-Host "No manifest at $Manifest. Nothing to uninstall."
         return
     }
+    # Signature-guarded: keep user-owned (-custom: signed) and unrecognized files.
     Get-Content $Manifest | ForEach-Object {
         if ($_ -match "^## ") { return }
         if (Test-Path $_ -PathType Container) {
-            Remove-Item $_ -Recurse -Force
-            Write-Host "  removed $_"
+            $skill = Join-Path $_ "SKILL.md"
+            $head = if (Test-Path $skill) { (Get-Content $skill -TotalCount 5) -join "`n" } else { "" }
+            if ($head -match "slate-agent-kit:common|kimi-agent-kit") {
+                Remove-Item $_ -Recurse -Force
+                Write-Host "  removed $_"
+            } else {
+                Write-Host "  kept (unrecognized signature): $_"
+            }
         } elseif (Test-Path $_ -PathType Leaf) {
-            Remove-Item $_ -Force
-            Write-Host "  removed $_"
+            $head = Get-Content $_ -TotalCount 1
+            if ($head -match "-custom:") {
+                Write-Host "  kept (user-owned): $_"
+            } elseif ($head -match "slate-agent-kit:common|kimi-agent-kit") {
+                Remove-Item $_ -Force
+                Write-Host "  removed $_"
+            } else {
+                Write-Host "  kept (unrecognized signature): $_"
+            }
         }
     }
     Remove-Item $Manifest -Force
@@ -51,30 +67,57 @@ if ($Uninstall) {
 
 Write-Host "Installing kimi-agent-kit..."
 Write-Host "  KIMI_CODE_HOME: $KimiCodeHome"
+Write-Host "  AGENTS.md:  $AgentsFile (manual + rules concatenated)"
 
 New-Item -ItemType Directory -Force -Path $KimiCodeHome, $RulesDir, $SkillsDir | Out-Null
 "## install @ $((Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'))" | Set-Content -Path $Manifest
 
-Fetch "$RawBase/AGENTS.md" $AgentsFile
-Add-Content -Path $Manifest -Value $AgentsFile
-Write-Host "  wrote $AgentsFile"
-
-foreach ($f in $RuleFiles) {
-    $dest = Join-Path $RulesDir $f
-    Fetch "$RawBase/kimi-rules/$f" $dest
-    Add-Content -Path $Manifest -Value $dest
-    Write-Host "  rule: $dest"
+# Back up a pre-existing AGENTS.md that this kit does not manage.
+if (Test-Path $AgentsFile) {
+    $head = Get-Content $AgentsFile -TotalCount 1
+    if ($head -notmatch "slate-agent-kit:common") {
+        $bak = "$AgentsFile.bak-$((Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssZ'))"
+        Copy-Item $AgentsFile $bak
+        Write-Host "WARNING: existing $AgentsFile is not managed by this kit; backed up to $bak"
+        Add-Content -Path $Manifest -Value "## backup: $bak"
+    }
 }
 
-foreach ($s in $SkillNames) {
-    $dest = Join-Path $SkillsDir $s
-    if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
-    New-Item -ItemType Directory -Force -Path $dest | Out-Null
-    Fetch "$RawBase/kimi-skills/$s/SKILL.md" (Join-Path $dest "SKILL.md")
-    Add-Content -Path $Manifest -Value $dest
-    Write-Host "  skill: $dest"
+$tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("kimi-agent-kit-" + [System.Guid]::NewGuid())
+New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+try {
+    Fetch "$RawBase/AGENTS.md" (Join-Path $tmp "AGENTS.md")
+    $parts = @((Get-Content (Join-Path $tmp "AGENTS.md") -Raw))
+    foreach ($f in $RuleFiles) {
+        $src = Join-Path $tmp $f
+        Fetch "$RawBase/kimi-rules/$f" $src
+        $parts += (Get-Content $src -Raw)
+        $dest = Join-Path $RulesDir $f
+        Copy-Item $src $dest -Force
+        Add-Content -Path $Manifest -Value $dest
+        Write-Host "  rule: $dest"
+    }
+    ($parts -join "`n---`n`n") | Set-Content -Path $AgentsFile -NoNewline
+    Add-Content -Path $AgentsFile -Value ""
+    Add-Content -Path $Manifest -Value $AgentsFile
+    Write-Host "  wrote $AgentsFile"
+
+    foreach ($s in $SkillNames) {
+        $dest = Join-Path $SkillsDir $s
+        if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
+        New-Item -ItemType Directory -Force -Path $dest | Out-Null
+        Fetch "$RawBase/kimi-skills/$s/SKILL.md" (Join-Path $dest "SKILL.md")
+        Add-Content -Path $Manifest -Value $dest
+        Write-Host "  skill: $dest"
+    }
+} finally {
+    Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host ""
 Write-Host "Installed kimi-agent-kit."
 Write-Host "Manifest: $Manifest"
+Write-Host ""
+Write-Host "NOTE: shared MCP registration (aside/dispatch) and prefs generation use"
+Write-Host "slate-agent-kit's POSIX tooling — run 'make install' from a clone under"
+Write-Host "WSL/macOS/Linux, or slate's tooling/install-mcp.sh --configure-kimi."
