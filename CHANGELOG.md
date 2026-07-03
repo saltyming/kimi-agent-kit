@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0 - 2026-07-03
+
+- **INV-QUALITY-1 — durable implementation** (rules-only release): new kernel invariant — every change must hold across the code's *declared operating envelope* (platforms, harnesses, input classes, callers, derived from repo evidence: docs, CI matrix, public APIs, tests, existing callers), not merely the case that triggered the work; fix causes, not symptoms; tests assert the contract, not the authoring machine's incidental representation. Woven into the execution loop (pre-coding envelope evidence, durability check, completion checklist), delegation prompt rules, and the dispatch spec-writing rule.
+
 ## 0.2.0 - 2026-07-03
 
 - **Concat installer restored** (regression fix): Kimi Code loads only the single `$KIMI_CODE_HOME/AGENTS.md`, so `make install` / `install.sh` again concatenate the manual + all rule files into it (`---` separators) — the 0.1.0 kit copied rules into `$KIMI_CODE_HOME/rules/` where Kimi never reads them. A pre-existing unmanaged `AGENTS.md` is backed up to `.bak-<timestamp>` first.
