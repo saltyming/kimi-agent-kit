@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 - 2026-07-05
+
+- **aside**: new `aside_claude` backend; the server emits MCP `notifications/progress` on long calls so the client's per-tool-call timeout resets instead of aborting.
+- **Install fixes**: `install.ps1` no longer installs to the wrong directory (missing `\` in `$env:USERPROFILE\.kimi-code`); `--uninstall` matches the real `slate-agent-kit:common` signature (was a no-op) and reads the line-6 skill signature; `install.sh` prompts for the required `DISPATCH_ROOTS`.
+- **Windows (`install.ps1`)**: registers the MCP plugin natively (downloads the prebuilt `.zip` binaries + runs the shared `write-kimi-plugin.js`) and generates prefs — previously punted to POSIX.
+- **Prefs / plugin**: the shared `configure-prefs.sh` is now interactive-first, injection-safe, all-knobs; a `configure-prefs.ps1` Windows twin + an extracted `write-kimi-plugin.js` (atomic write, corrupt-registry backup) are shared with slate.
+- **README**: full rewrite to parity with the Claude kit — invariant kernel, palette, aside, dispatch, adapted to Kimi's surfaces.
+
 ## 0.3.0 - 2026-07-03
 
 - **INV-QUALITY-1 — durable implementation** (rules-only release): new kernel invariant — every change must hold across the code's *declared operating envelope* (platforms, harnesses, input classes, callers, derived from repo evidence: docs, CI matrix, public APIs, tests, existing callers), not merely the case that triggered the work; fix causes, not symptoms; tests assert the contract, not the authoring machine's incidental representation. Woven into the execution loop (pre-coding envelope evidence, durability check, completion checklist), delegation prompt rules, and the dispatch spec-writing rule.

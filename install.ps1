@@ -1,8 +1,11 @@
 param(
     [switch]$Uninstall,
-    [string]$KimiCodeHome = "$env:USERPROFILE.kimi-code",
+    [switch]$SkipMcp,
+    [string]$KimiCodeHome = "$env:USERPROFILE\.kimi-code",
     [string]$Repo = "saltyming/kimi-agent-kit",
-    [string]$Branch = "main"
+    [string]$Branch = "main",
+    [string]$SlateRepo = "saltyming/slate-agent-kit",
+    [string]$DispatchRoots = $env:DISPATCH_ROOTS
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,7 +44,7 @@ if ($Uninstall) {
         if ($_ -match "^## ") { return }
         if (Test-Path $_ -PathType Container) {
             $skill = Join-Path $_ "SKILL.md"
-            $head = if (Test-Path $skill) { (Get-Content $skill -TotalCount 5) -join "`n" } else { "" }
+            $head = if (Test-Path $skill) { (Get-Content $skill -TotalCount 8) -join "`n" } else { "" }
             if ($head -match "slate-agent-kit:common|kimi-agent-kit") {
                 Remove-Item $_ -Recurse -Force
                 Write-Host "  removed $_"
@@ -114,10 +117,60 @@ try {
     Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+# ── Shared MCP servers (aside, dispatch) as a local Kimi plugin ───────
+# Registered natively on Windows via the SAME plugin writer the POSIX path uses
+# (slate's install-mcp.sh cannot run here). Needs node + the slate release
+# binaries. write-kimi-plugin.js was fetched alongside the rules into scripts/.
+if (-not $SkipMcp) {
+    if (Get-Command node -ErrorAction SilentlyContinue) {
+        $arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "aarch64" } else { "x86_64" }
+        $platform = "$arch-pc-windows-msvc"
+        $binDir = Join-Path $KimiCodeHome "slate-agent-kit\bin"
+        New-Item -ItemType Directory -Force -Path $binDir | Out-Null
+        $mcpOk = $true
+        foreach ($srv in @("aside", "dispatch")) {
+            try {
+                $url = "https://github.com/$SlateRepo/releases/latest/download/$srv-$platform.zip"
+                $zip = Join-Path ([System.IO.Path]::GetTempPath()) ("$srv-$platform-" + [System.Guid]::NewGuid() + ".zip")
+                Invoke-WebRequest -Uri $url -OutFile $zip
+                $ex = Join-Path ([System.IO.Path]::GetTempPath()) ("slate-$srv-" + [System.Guid]::NewGuid())
+                Expand-Archive -Path $zip -DestinationPath $ex -Force
+                Copy-Item (Join-Path $ex "$srv.exe") (Join-Path $binDir "$srv.exe") -Force
+                Remove-Item $zip -Force -ErrorAction SilentlyContinue
+                Remove-Item $ex -Recurse -Force -ErrorAction SilentlyContinue
+            } catch {
+                Write-Host "  Could not fetch $srv from $SlateRepo releases: $_"
+                $mcpOk = $false
+            }
+        }
+        if ($mcpOk) {
+            $writer = Join-Path ([System.IO.Path]::GetTempPath()) ("write-kimi-plugin-" + [System.Guid]::NewGuid() + ".js")
+            Fetch "$RawBase/scripts/write-kimi-plugin.js" $writer
+            $defaultHome = Join-Path $env:USERPROFILE ".kimi-code"
+            $rootsArg = if ($DispatchRoots) { $DispatchRoots } else { "" }
+            & node $writer $KimiCodeHome (Join-Path $binDir "aside.exe") (Join-Path $binDir "dispatch.exe") $defaultHome $rootsArg
+            Remove-Item $writer -Force -ErrorAction SilentlyContinue
+            Write-Host "  Registered slate-agent-kit-mcp plugin (aside + dispatch)."
+            if (-not $DispatchRoots) {
+                Write-Host "  Note: no -DispatchRoots given; dispatch will reject working_dirs (no_project_root) until set."
+            }
+        }
+    } else {
+        Write-Host "NOTE: node not found — skipped MCP plugin registration. Install Node.js and re-run,"
+        Write-Host "or use slate's tooling/install-mcp.sh --configure-kimi under WSL/POSIX."
+    }
+}
+
 Write-Host ""
 Write-Host "Installed kimi-agent-kit."
 Write-Host "Manifest: $Manifest"
 Write-Host ""
-Write-Host "NOTE: shared MCP registration (aside/dispatch) and prefs generation use"
-Write-Host "slate-agent-kit's POSIX tooling — run 'make install' from a clone under"
-Write-Host "WSL/macOS/Linux, or slate's tooling/install-mcp.sh --configure-kimi."
+# ── aside/dispatch preferences (the shared configure-prefs.ps1) ──
+$prefsTmp = Join-Path $env:TEMP ("kimi-prefs-" + [System.Guid]::NewGuid())
+New-Item -ItemType Directory -Force -Path $prefsTmp | Out-Null
+Invoke-WebRequest -Uri "$RawBase/scripts/configure-prefs.ps1" -OutFile (Join-Path $prefsTmp "configure-prefs.ps1")
+foreach ($t in @("aside", "dispatch")) {
+    Invoke-WebRequest -Uri "$RawBase/scripts/kimi-agent-kit--$t-prefs.md.tmpl" -OutFile (Join-Path $prefsTmp "kimi-agent-kit--$t-prefs.md.tmpl")
+}
+& (Join-Path $prefsTmp "configure-prefs.ps1") -RulesDir $RulesDir -Prefix "kimi-agent-kit" -Manifest $Manifest
+Remove-Item $prefsTmp -Recurse -Force -ErrorAction SilentlyContinue

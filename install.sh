@@ -88,7 +88,7 @@ uninstall() {
     while IFS= read -r f; do
         case "$f" in "## "*) continue ;; esac
         if [ -d "$f" ]; then
-            if head -5 "$f/SKILL.md" 2>/dev/null | grep -q 'slate-agent-kit:common.kimi-code-agent-kit'; then
+            if head -8 "$f/SKILL.md" 2>/dev/null | grep -Eq '<!-- (slate-agent-kit:common|kimi-agent-kit) -->'; then
                 rm -rf "$f"
                 echo "  removed $f"
             else
@@ -97,7 +97,7 @@ uninstall() {
         elif [ -f "$f" ]; then
             if head -1 "$f" | grep -q -- '-custom:'; then
                 echo "  kept (user-owned): $f"
-            elif head -1 "$f" | grep -q 'slate-agent-kit:common.kimi-code-agent-kit'; then
+            elif head -1 "$f" | grep -Eq '<!-- (slate-agent-kit:common|kimi-agent-kit) -->'; then
                 rm -f "$f"
                 echo "  removed $f"
             else
@@ -213,8 +213,16 @@ install_mcp() {
         echo "Skipping MCP registration because SKIP_MCP=1."
         return 0
     }
+    # dispatch on Kimi is useless without a workspace root: the plugin runtime
+    # spawns MCP servers outside any project, so with no root every
+    # dispatch_submit returns no_project_root. Prompt for one if not preset.
+    if [ -z "${DISPATCH_ROOTS:-}" ] && [ -z "${SKIP_PROMPT:-}" ] && [ -r /dev/tty ] && [ -w /dev/tty ]; then
+        printf 'Absolute workspace root for dispatch (blank to skip; dispatch then rejects every working_dir): ' > /dev/tty
+        read -r _roots < /dev/tty || _roots=""
+        [ -n "$_roots" ] && DISPATCH_ROOTS="$_roots"
+    fi
     if slate_dir="$(find_slate_dir 2>/dev/null)"; then
-        BIN_DIR="$BIN_DIR" KIMI_CODE_HOME="$KIMI_CODE_HOME" "$slate_dir/tooling/install-mcp.sh" --configure-kimi
+        BIN_DIR="$BIN_DIR" KIMI_CODE_HOME="$KIMI_CODE_HOME" DISPATCH_ROOTS="${DISPATCH_ROOTS:-}" "$slate_dir/tooling/install-mcp.sh" --configure-kimi
         return 0
     fi
     command -v git >/dev/null 2>&1 || {
@@ -223,7 +231,7 @@ install_mcp() {
     }
     slate_tmp="$tmp_dir/slate-agent-kit"
     git clone --depth=1 --branch "$SLATE_BRANCH" "https://github.com/$SLATE_REPO.git" "$slate_tmp"
-    BIN_DIR="$BIN_DIR" KIMI_CODE_HOME="$KIMI_CODE_HOME" "$slate_tmp/tooling/install-mcp.sh" --configure-kimi
+    BIN_DIR="$BIN_DIR" KIMI_CODE_HOME="$KIMI_CODE_HOME" DISPATCH_ROOTS="${DISPATCH_ROOTS:-}" "$slate_tmp/tooling/install-mcp.sh" --configure-kimi
 }
 
 install_mcp
