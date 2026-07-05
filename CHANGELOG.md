@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1 - 2026-07-05
+
+- **aside/dispatch recursion guard (security fix)**: closes a fork-bomb vector where a backend spawned by `aside`/`dispatch` — while still having them registered as MCP servers — could re-invoke them and spawn another backend without bound.
+- **aside**: backends now carry no MCP server — codex is spawned with `exec --ignore-user-config` (auth still resolves from the codex home), alongside claude `--safe-mode` and copilot's read-only whitelist; plus a defense-in-depth `ASIDE_REENTRY_DEPTH` marker.
+- **dispatch**: blocks dispatch→dispatch via a `DISPATCH_REENTRY_DEPTH` env marker (claude/opencode forward their env to MCP children) plus, for codex (which does not), `-c mcp_servers.dispatch.enabled=false`. `aside` stays reachable, so dispatch→aside is still allowed; new `reentrant` error code.
+
 ## 0.4.0 - 2026-07-05
 
 - **aside**: new `aside_claude` backend; the server emits MCP `notifications/progress` on long calls so the client's per-tool-call timeout resets instead of aborting.
