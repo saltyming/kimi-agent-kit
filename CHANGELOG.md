@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.3 - 2026-07-06
+
+- **dispatch**: poll responses no longer re-echo the whole submitted spec on every call. `dispatch_status` is compact by default — the accepted `spec`, rendered `prompt`, and `argv` move behind a new `include_spec` param (default false); terminal `result`/`error` still return. `dispatch_logs` / `dispatch_wait` collapse the backend's initial prompt echo (and opencode's duplicate `[opencode]` re-echo) to a one-line placeholder for fresh submits, matched by canonical content vs the stored prompt so a steered task's new instruction stays visible; bare `</think>` markers are dropped. Verified for codex/opencode/claude via synthetic fixtures.
+
 ## 0.4.2 - 2026-07-06
 
 - **dispatch**: `dispatch_steer` now inherits the steered task's `allow_concurrent` by default and accepts an explicit override — fixes the case where a task in a directory with other concurrent runs could not be steered (`dir_busy` with no bypass; `allow_concurrent=false` re-enforces the guard). `allow_concurrent` is persisted on the task row via an additive, backward-compatible SQLite column (old DBs backfill to false).
