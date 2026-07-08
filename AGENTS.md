@@ -1,8 +1,8 @@
 <!-- slate-agent-kit:common -->
 # Kimi Agent Operating Manual
 
-**Version**: 0.4.3
-**Last Updated**: 2026-07-03
+**Version**: 0.4.4
+**Last Updated**: 2026-07-08
 
 > Operating rules for Kimi Code CLI agents. This kernel defines the
 > **invariants** (each stated exactly once, with a stable ID) and names the

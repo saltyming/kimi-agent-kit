@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.4 - 2026-07-08
+
+- **aside**: prompt hardened against leading-question anchoring bias — a leading/loaded question from the leader (e.g. "I fixed the race condition by adding a mutex — confirm this is correct") let the backend rubber-stamp the framing instead of independently checking the premise. `ROLE_FRAMING` now frames the backend's role as an independent second opinion; a new `INDEPENDENCE_REMINDER` is appended as the prompt's final section (after the question, not just folded into the top) so it isn't diluted by a large context/transcript block and lands with maximum salience right before the backend generates its answer. Guards against overcorrection — the backend still answers plainly when the premise holds and answers simple factual questions directly. New `compose_prompt` unit tests cover section ordering, the no-context/no-transcript case, and continuation-join substring checks on the new multi-line literals (none existed before).
+- **rules**: `kimi-agent-kit--aside.md` gets a new "Question framing" section instructing the leader to phrase `question`/`context` as an assessment to verify, not a conclusion to confirm.
+
 ## 0.4.3 - 2026-07-06
 
 - **dispatch**: poll responses no longer re-echo the whole submitted spec on every call. `dispatch_status` is compact by default — the accepted `spec`, rendered `prompt`, and `argv` move behind a new `include_spec` param (default false); terminal `result`/`error` still return. `dispatch_logs` / `dispatch_wait` collapse the backend's initial prompt echo (and opencode's duplicate `[opencode]` re-echo) to a one-line placeholder for fresh submits, matched by canonical content vs the stored prompt so a steered task's new instruction stays visible; bare `</think>` markers are dropped. Verified for codex/opencode/claude via synthetic fixtures.
