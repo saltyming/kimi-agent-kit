@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 - 2026-07-17
+
+**The subtraction release (shared corpus).** The shared rule sources halve: policy, gates, and trigger lists stay standing; operational mechanics move to just-in-time surfaces. Every INV-*/GATE-* definition and disambiguating boundary test is preserved.
+
+- **aside / dispatch rules slimmed** — backend capability/redaction tables and tool-by-tool call mechanics now live in the MCP servers' own instructions and tool descriptions (loaded where the tools are used, not in every session).
+- **dispatch server: observability + auto-restart.** `dispatch_status`/`dispatch_wait` report `child_process_alive`, `log_associated`, `log_last_write_age_seconds`; dead-owner rows reconcile at read time (conditional transition — a racing terminal write is never clobbered). A fresh codex submit whose log never associates within ~30s with no working-dir writes is killed and re-submitted once (`restart_of`/`restarted_as`; `DISPATCH_RESTART_UNASSOCIATED_SECS`, 0=off). Tool descriptions now state that a quiet log on a live process is inconclusive — judge liveness by the new fields, never by silence.
+- **palette rules slimmed** — artifact schemas, RST house style, and scoring rubrics moved to `_palette/templates/*`, scaffolded by `palette-init` (which backfills templates for existing palette projects).
+- **execution-loop rules condensed** — GATE-SCOPE-CONFIRM / GATE-DEVIATION / GATE-GIT keep every trigger and required sequence in tighter prose.
+- **validate: standing-corpus byte budgets (hard)** — rendered-corpus regrowth past the per-harness ceiling fails the build.
+
 ## 0.4.4 - 2026-07-08
 
 - **aside**: prompt hardened against leading-question anchoring bias — a leading/loaded question from the leader (e.g. "I fixed the race condition by adding a mutex — confirm this is correct") let the backend rubber-stamp the framing instead of independently checking the premise. `ROLE_FRAMING` now frames the backend's role as an independent second opinion; a new `INDEPENDENCE_REMINDER` is appended as the prompt's final section (after the question, not just folded into the top) so it isn't diluted by a large context/transcript block and lands with maximum salience right before the backend generates its answer. Guards against overcorrection — the backend still answers plainly when the premise holds and answers simple factual questions directly. New `compose_prompt` unit tests cover section ordering, the no-context/no-transcript case, and continuation-join substring checks on the new multi-line literals (none existed before).
