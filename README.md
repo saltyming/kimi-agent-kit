@@ -47,7 +47,7 @@ Install the CLIs separately (`aside` only wraps them): [codex](https://github.co
 
 Asynchronous **hierarchical delegation** — hand an execution step to an external coding agent (codex, opencode, or claude) running headless and **write-capable**. Where `aside` seeks a read-only opinion, `dispatch` entrusts execution; the run continues in the background and you poll for the result.
 
-- **Async submit → poll / wait → cancel** — `dispatch_submit` returns a task id immediately and runs the backend detached; `dispatch_status` / `dispatch_list` track it, `dispatch_wait` blocks (bounded), `dispatch_cancel` stops a run or a whole `plan_id`.
+- **Async submit → poll → cancel** — `dispatch_submit` returns a task id immediately and runs the backend detached; `dispatch_status` / `dispatch_list` track it, `dispatch_logs` shows the curated timeline, `dispatch_cancel` stops a run or a whole `plan_id`.
 - **Watch + steer** — `dispatch_logs` shows a curated live timeline; `dispatch_steer` interrupts and resumes the *same* backend session with a new instruction, preserving context + files it already wrote.
 - **Server-enforced guards** — `working_dir` must canonicalize within an allowed root (see `DISPATCH_ROOTS` below); `danger-full-access` is blocked unless `DISPATCH_ALLOW_DANGER=1`; one active run per directory.
 - **Execution policy + approval gate** — `configure-prefs.sh` generates `kimi-agent-kit--dispatch-prefs.md` with a `conservative` / `preference-only` / `proactive` policy plus an approval mode; `ask` confirms working_dir + step scope before the first submit, `auto` pre-authorizes within server guards.

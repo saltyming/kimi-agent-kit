@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0 - 2026-07-22
+
+**`dispatch_wait` removed.** The `dispatch` MCP server's bounded long-poll tool is retired; supervise a run with `dispatch_status` (non-blocking snapshot + terminal result) and `dispatch_logs` (curated timeline). `dispatch_steer` / `dispatch_cancel` unaffected; the advertised dispatch surface drops 8 → 7 tools.
+
+- **server**: `main.rs` drops the `dispatch_wait` method, its `wait_json` / `wait_log_tail` helpers, the `WAIT_*` constants, and the now-orphaned `preview_oneline` helper (only caller was `wait_json`; else `clippy -D warnings` fails). `params.rs` drops `WaitParams`. `get_info`'s SUPERVISION clause no longer names the tool. `rollout::window_with_limits` kept (backs `dispatch_logs` + its unit test); stale doc comment fixed.
+- **rules**: `kimi-agent-kit--dispatch.md`'s "Ending a turn" HARD RULE is rewritten — `dispatch_status` is a non-blocking snapshot, so don't tight-poll: do other work and re-check, use the harness's own wait/scheduling, or tell the user. `get_info` / tool descriptions / decision-tree get a clean reference removal, no added guidance.
+- CHANGELOG history left intact; no regression test added (user scope call).
+
+Verified in-session: `cargo fmt --check`, `cargo build/test/clippy --workspace -- -D warnings`, `sh tooling/validate.sh` (`validate: OK`), post-render `grep` clean. Reviewed by `aside_codex` + `advisor()`.
+
+Minor bump (public-MCP-tool-surface removal, shipped minor per user).
+
 ## 0.5.0 - 2026-07-17
 
 **The subtraction release (shared corpus).** The shared rule sources halve: policy, gates, and trigger lists stay standing; operational mechanics move to just-in-time surfaces. Every INV-*/GATE-* definition and disambiguating boundary test is preserved.

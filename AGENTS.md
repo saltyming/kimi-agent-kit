@@ -1,8 +1,8 @@
 <!-- slate-agent-kit:common -->
 # Kimi Agent Operating Manual
 
-**Version**: 0.5.0
-**Last Updated**: 2026-07-17
+**Version**: 0.6.0
+**Last Updated**: 2026-07-22
 
 > Operating rules for Kimi Code CLI agents. This kernel defines the
 > **invariants** (each stated exactly once, with a stable ID) and names the
@@ -158,7 +158,7 @@ User Request
 │     ├─ Independent, non-overlapping subtasks → Agent tool (write-capable subagent), one per lane
 │     ├─ Same prompt over N items (breadth-first mechanical sweep) → AgentSwarm fan-out
 │     └─ External execution step (codex/opencode/claude backend) → dispatch_submit when installed
-│           → poll dispatch_status / dispatch_wait / dispatch_logs / dispatch_steer
+│           → poll dispatch_status / dispatch_logs / dispatch_steer
 │           (dispatch-prefs execution policy; proactive+auto → submit directly)
 │
 └─ Done? → verify for real (INV-VERIFY-1), report faithfully (INV-VERIFY-2)
