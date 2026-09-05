@@ -1,7 +1,7 @@
 <!-- slate-agent-kit:common -->
 # Kimi Agent Operating Manual
 
-**Version**: 0.6.0
+**Version**: 0.6.1
 **Last Updated**: 2026-07-22
 
 > Operating rules for Kimi Code CLI agents. This kernel defines the
