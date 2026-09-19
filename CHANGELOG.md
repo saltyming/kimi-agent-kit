@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.1 - 2026-09-19
+
+**Comment preferences and interactive git preferences.** Ships alongside claude-agent-kit 12.0.1.
+
+- **New: comment preferences.** A user-owned `kimi-agent-kit--comment-prefs.md` holds three values: whether new files get a header (`repository` or `structured`), the comment language, and doc comment coverage. Every value defaults to `repository`, so the repository's own convention decides and the file settles only what a repository leaves open. The precedence is the current-turn instruction, then a line under the file's "Repository overrides", then the repository's convention, then the file's value.
+- **File header rule narrowed.** The execution loop's "File headers" paragraph became "File headers and comment style". Header presence and the structured layout (responsibility, boundary, invariants) moved into the comment prefs; "who calls it" was dropped from the layout because it goes stale as callers change. The rule keeps what a header leaves out (plan, phase, or ticket references, design deliberation, future intentions), the session-context rule, and adds: when you edit an existing header, keep its format and change only what your edit made untrue. The comment prefs are read once per session before creating a file or writing a comment, doc comment, or header, including in a file that is only being edited.
+- **Git and comment prefs are configured interactively.** `configure-prefs.sh` and `configure-prefs.ps1` now prompt for the git values (default `unset`, so the agent still asks later for anything left unset) and the comment values, as they do for aside and dispatch. Unlike aside and dispatch, both files are edited in place: a reconfigure offers each current value as the default and rewrites only the value lines, so answers the agent recorded, repository overrides, and notes are kept. Env seeds `GIT_*` and `COMMENT_*` cover non-interactive runs. The shell version also handles a file with CRLF line endings.
+- **Installers** fetch the new `kimi-agent-kit--comment-prefs.md.tmpl`; uninstall keeps the file (user-owned signature).
+
+Verified in-session: `sh tooling/render-kit.sh` for all three kits and `sh tooling/validate.sh` (`validate: OK`; standing corpus claude 52.6 KB, codex 52.7 KB, kimi 51.6 KB); `configure-prefs.sh` under `sh` and `dash` and `configure-prefs.ps1` under `pwsh` in scratch directories (fresh install byte-identical to the templates; a rerun without reconfigure leaves files unchanged; `PREFS_RECONFIGURE=yes` without seeds changes nothing; seeds containing `| & \ $ /` are written literally; repository override lines survive; CRLF files are rewritten with CRLF kept); the interactive prompts driven through a pseudo-terminal; `make install` / `make uninstall` of each kit into scratch homes with `HOME` isolated (`SKIP_MCP=1`), and `make validate` for codex and kimi. Not run: the `curl | sh` and `irm | iex` installers, which fetch from GitHub `main`. No aside review, at the user's direction.
+
+Patch bump, at the user's direction.
+
 ## 0.7.0 - 2026-09-19
 
 **Subtraction release: blacklist-style rules, task-tracker rule removed, git workflow as user preferences.** The shared rule text was rewritten and cut (63.9 KB to 51.0 KB), and the git conventions became a user-owned prefs file. Ships alongside claude-agent-kit 12.0.0.
