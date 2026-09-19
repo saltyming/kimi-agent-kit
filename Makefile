@@ -126,8 +126,8 @@ validate: ## Sanity-check generated files and Kimi-specific surface
 	test -f scripts/configure-prefs.sh || { echo "missing scripts/configure-prefs.sh"; fail=1; }; \
 	test -f scripts/kimi-agent-kit--aside-prefs.md.tmpl || { echo "missing aside prefs template"; fail=1; }; \
 	test -f scripts/kimi-agent-kit--dispatch-prefs.md.tmpl || { echo "missing dispatch prefs template"; fail=1; }; \
-	grep -R -n "TodoList" kimi-rules/kimi-agent-kit--kimi-surface.md >/dev/null || { echo "missing Kimi TodoList rule"; fail=1; }; \
+	test -f scripts/kimi-agent-kit--git-prefs.md.tmpl || { echo "missing git prefs template"; fail=1; }; \
 	grep -R -n "AgentSwarm" kimi-rules/kimi-agent-kit--kimi-surface.md kimi-rules/kimi-agent-kit--delegation.md >/dev/null || { echo "missing Kimi AgentSwarm binding"; fail=1; }; \
 	grep -R -n "slate-agent-kit-mcp" kimi-rules/kimi-agent-kit--kimi-surface.md README.md >/dev/null || { echo "missing Kimi MCP plugin documentation"; fail=1; }; \
-	! grep -R -n "workslate_task\\|CLAUDE.md\\|claude-rules" AGENTS.md kimi-rules kimi-skills >/dev/null || { echo "stale Claude-specific terms found"; fail=1; }; \
+	! grep -R -n "workslate\\|CLAUDE.md\\|claude-rules" AGENTS.md kimi-rules kimi-skills >/dev/null || { echo "stale Claude-specific terms found"; fail=1; }; \
 	exit $$fail

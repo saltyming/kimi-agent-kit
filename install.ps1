@@ -169,7 +169,7 @@ Write-Host ""
 $prefsTmp = Join-Path $env:TEMP ("kimi-prefs-" + [System.Guid]::NewGuid())
 New-Item -ItemType Directory -Force -Path $prefsTmp | Out-Null
 Invoke-WebRequest -Uri "$RawBase/scripts/configure-prefs.ps1" -OutFile (Join-Path $prefsTmp "configure-prefs.ps1")
-foreach ($t in @("aside", "dispatch")) {
+foreach ($t in @("aside", "dispatch", "git")) {
     Invoke-WebRequest -Uri "$RawBase/scripts/kimi-agent-kit--$t-prefs.md.tmpl" -OutFile (Join-Path $prefsTmp "kimi-agent-kit--$t-prefs.md.tmpl")
 }
 & (Join-Path $prefsTmp "configure-prefs.ps1") -RulesDir $RulesDir -Prefix "kimi-agent-kit" -Manifest $Manifest

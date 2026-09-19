@@ -20,7 +20,7 @@ Kimi Code loads a single user-scope `$KIMI_CODE_HOME/AGENTS.md`, so the installe
 | **State safety** (`INV-STATE-*`) | No model-initiated rollback; "undo" reverses this session's edits, not repo state; user-owned uncommitted changes are inviolate. |
 | **Delegation gates** (`GATE-DELEGATE` / `GATE-DISPATCH`) | Write-capable delegation is surfaced and approved before it runs. |
 
-These bind to Kimi via `kimi-rules/kimi-agent-kit--kimi-surface.md`: multi-step work is tracked with **`TodoList`** (Kimi's task tracker, in place of Claude's workslate); delegation uses **`Agent` / `AgentSwarm`**; helpers load through Kimi's native **`Skill`** scanning. Detailed rules live in `kimi-rules/` (task execution, delegation, palette, git workflow, framework conventions, aside, dispatch) and are folded into the one `AGENTS.md`.
+These bind to Kimi via `kimi-rules/kimi-agent-kit--kimi-surface.md`: delegation uses **`Agent` / `AgentSwarm`**; helpers load through Kimi's native **`Skill`** scanning. Detailed rules live in `kimi-rules/` (task execution, delegation, palette, git workflow, framework conventions, aside, dispatch) and are folded into the one `AGENTS.md`.
 
 ### palette — product-intent outer loop (rules + skills, no server)
 
