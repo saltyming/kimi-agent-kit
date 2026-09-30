@@ -2,7 +2,7 @@
 
 An operating manual and rule set for the Kimi Code CLI (`AGENTS.md` plus rule files), the palette document system with its skills, and three shared MCP servers: `aside` (second opinions from another model family), `dispatch` (asynchronous execution by a codex, opencode or claude backend) and `palette` (reads, checks and writes palette documents). One installer, `slate-setup`, installs all of it, registers the servers as a Kimi plugin, writes your preferences and sets the subagent default model.
 
-This is kimi-agent-kit 0.8.0. Its rules, skills, templates and prefs templates are rendered from [`slate-agent-kit`](https://github.com/saltyming/slate-agent-kit), which also builds the servers and the installer; its release v0.7.0 provides the binaries. The Claude and Codex kits are rendered from the same source and differ only where the harness does.
+This is kimi-agent-kit 0.9.0. Its rules, skills, templates and prefs templates are rendered from [`slate-agent-kit`](https://github.com/saltyming/slate-agent-kit), which also builds the servers and the installer; its release v0.7.0 provides the binaries. The Claude and Codex kits are rendered from the same source and differ only where the harness does.
 
 ## What's Inside
 
@@ -159,7 +159,7 @@ irm https://raw.githubusercontent.com/saltyming/kimi-agent-kit/main/install.ps1 
 
 The PowerShell script also accepts the earlier installers' switches: `-Uninstall`, `-SkipMcp` and `-DispatchRoots <paths>`.
 
-The entry point downloads the prebuilt `slate-setup` for your platform from slate release v0.7.0, verifies its checksum, and runs it on the kit's payload. `slate-setup` performs every step, with the same code on Linux, macOS and Windows.
+The entry point downloads the prebuilt `slate-setup` for your platform from slate release v0.8.0, verifies its checksum, and runs it on the kit's payload. `slate-setup` performs every step, with the same code on Linux, macOS and Windows.
 
 | Command | Does |
 |---|---|
@@ -169,7 +169,7 @@ The entry point downloads the prebuilt `slate-setup` for your platform from slat
 
 | Option | Meaning |
 |---|---|
-| `--binaries prebuilt\|build\|skip` | `prebuilt` (default) downloads `aside`, `dispatch` and `palette` from the slate release, checked against `checksums.txt` (if release v0.7.0 does not exist it uses the latest and says so). `build` runs `cargo build --release` in `--slate-dir` and needs Rust. `skip` installs no binaries and registers no servers. `--skip-mcp` still works. |
+| `--binaries prebuilt\|build\|skip` | `prebuilt` (default) downloads `aside`, `dispatch` and `palette` from the slate release, checked against `checksums.txt` (if release v0.8.0 does not exist it uses the latest and says so). `build` runs `cargo build --release` in `--slate-dir` and needs Rust. `skip` installs no binaries and registers no servers. `--skip-mcp` still works. |
 | `--slate-dir <dir>` | The slate checkout to build from. |
 | `--roots <paths>` | Workspace roots dispatch and palette may work in, as an OS path list. When it is not given, the `DISPATCH_ROOTS` environment variable is used. Kimi needs one (see above). |
 | `--set <key>=<value>` | Pre-answers a prefs question; repeatable. Keys are `<file>.<key>`, for example `aside.level=auto` or `git.signing=no-gpg-sign`. |
