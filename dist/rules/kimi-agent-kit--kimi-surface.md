@@ -2,7 +2,7 @@
 # Kimi Surface Rules
 
 The Kimi-specific overlay. The shared Slate rules define the behavior
-(invariants and gates in `AGENTS.md`); this file covers what
+(the articles in `AGENTS.md`); this file covers what
 differs in Kimi Code CLI: how the rules load and the Slate MCP plugin.
 
 ## Loading Model

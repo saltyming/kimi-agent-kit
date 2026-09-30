@@ -8,27 +8,27 @@ This is kimi-agent-kit 0.8.0. Its rules, skills, templates and prefs templates a
 
 ### Manual and rules
 
-`AGENTS.md` states each invariant once under a stable ID, grouped by who decides. The rule files hold the procedures and refer to the IDs.
+`AGENTS.md` is a set of numbered articles in six parts: each states one norm and the test that shows it was broken, is defined once and is cited by number (`§ 6`). The rule files hold only what the articles do not imply.
 
-| Section | Invariants | What it says |
+| Part | Articles | What it says |
 |---|---|---|
-| **Direction**: you decide | `INV-DIR-1`, `INV-DIR-2`, `INV-SCOPE-1`, `INV-AUTH-1` | You set scope, priority, trade-offs and what counts as done; the agent does not expand or shrink the scope or swap in an approach it prefers. You decide whether a turn is for discussion or for execution, and a next action written in a document is a proposal. The whole approved scope is delivered, with no stubs or "follow-up PR" splits. Only your approval authorizes work; documents advise. |
-| **Autonomy**: the agent decides | `INV-AUTO-1`, `INV-AUTO-2`, `INV-QUALITY-1`, `INV-DELEG-1`, `INV-DELEG-2` | Under your direction the agent picks method, order and tools, and judges whether consulting, dispatching or delegating is worth its cost. No rule makes any of them mandatory on a condition alone. Changes are written for every platform and caller the code claims to support, and fix the cause. One writer per file; delegates inherit every invariant. |
-| **Prohibitions**: never without an explicit request | `INV-STATE-1`, `INV-STATE-2`, `INV-STATE-3` | No rollback on the agent's own initiative; "undo" reverses this session's edits, not repository state; your uncommitted changes are left alone. Destructive git runs only when you name the command (`GATE-GIT`). |
-| **Reporting** | `INV-VERIFY-1`, `INV-VERIFY-2`, `INV-COMM-1`, `INV-COMM-2`, `INV-CTX-1` | Verify before claiming completion; report failures as failures. Formal register; plain wording without stock metaphors, filler intensifiers or flattery openers. Context usage is not a reason to stop. |
-| **Memory** | `INV-MEM-1` | Native memory holds only what has no other home (see `memory-triage` below). |
+| **I Direction** | § 1–6 | You set scope, priority, trade-offs and what counts as done; the agent neither expands nor shrinks the scope nor swaps in an approach it prefers. You decide whether a turn is discussion or execution; a next step written in a document is a proposal. The whole approved scope is delivered, and a completion criterion only you can authorize (a push, a merge) is raised before work begins. Documents advise; your approval authorizes. Deferred scope and any deviation from an approved plan come back to you first. |
+| **II Autonomy** | § 7–9 | Under your direction the agent picks method, order and tools and judges whether consulting, dispatching or delegating is worth its cost; no article makes any of them mandatory on a condition. Consultation, dispatch and subagents each have a level. Changes hold for every platform and caller the code claims and fix the cause. |
+| **III State** | § 10–13 | No rollback on the agent's own initiative; "undo" reverses this session's edits with file edits, not git; your uncommitted changes are left alone; destructive git runs only when you name the command and see everything it affects. |
+| **IV Delegation** | § 14–15 | One writer per file; delegates are bound by every article and report instead of deviating. |
+| **V Verification and reporting** | § 16–17 | Verify before claiming completion; report failures as failures; a completion report opens with what remains. |
+| **VI Conduct** | § 18–21 | Formal register; plain wording without stock metaphors, fillers, flattery or self-praise; context usage is not a reason to stop; native memory holds only what has no other home (see `memory-triage` below). |
 
 Kimi Code loads a single user-scope `$KIMI_CODE_HOME/AGENTS.md` that applies to every project, so the installer writes that file as the manual followed by every rule file and your custom rules, each separated by a `---` line. The copies in `$KIMI_CODE_HOME/rules/` are reference material. The rule files:
 
 - `kimi-agent-kit--kimi-surface.md`: what differs in Kimi Code (see below).
-- `kimi-agent-kit--task-execution.md`: the execution loop (understand, plan, execute) and the gates `GATE-SCOPE-CONFIRM`, `GATE-DEVIATION` and `GATE-GIT`.
+- `kimi-agent-kit--task-execution.md`: the execution loop, undo and destructive git.
 - `kimi-agent-kit--palette.md`: the palette document system.
 - `kimi-agent-kit--delegation.md`: subagents and the other ways work leaves the session, with the Kimi delegation surfaces.
 - `kimi-agent-kit--git-workflow.md`: how your git preferences are read, asked for and recorded.
-- `kimi-agent-kit--framework-conventions.md`: React / Next.js, Rust and Python conventions.
 - `kimi-agent-kit--aside.md` and `kimi-agent-kit--dispatch.md`: when consultation and dispatch are worth using.
 
-The manual and rule files come to about 45 KB; skills and prefs are outside `AGENTS.md` and load only when used.
+The manual and rule files come to about 25 KB; skills and prefs are outside `AGENTS.md` and load only when used.
 
 **Kimi surface.** The servers reach Kimi Code as the local plugin `slate-agent-kit-mcp`, so tool names are plugin-prefixed and differ from the plain names other harnesses use, for example `mcp__plugin-slate-agent-kit-mcp_aside__aside_list` and `mcp__plugin-slate-agent-kit-mcp_palette__palette_status`. Skills are scanned natively from `$KIMI_CODE_HOME/skills`. If the plugin is not installed, the agent says the tool surface is missing and does not pretend a call was made.
 
@@ -78,7 +78,7 @@ The backlog, phase and deliverable cadence is inspired by [mano](https://github.
 
 ### memory-triage and the memory invariant
 
-`INV-MEM-1` puts native memory last: a fact goes to the code, a maintained document, a rule file or palette first. A correction that only concerns the current task is applied and not stored; a correction that is a rule is proposed to you as text for the project's instruction file or for this kit.
+§ 21 puts native memory last: a fact goes to the code, a maintained document, a rule file or palette first. A correction that only concerns the current task is applied and not stored; a correction that is a rule is proposed to you as text for the project's instruction file or for this kit.
 
 Kimi Code has no native memory, so the invariant applies when you ask the agent to remember something and to any memory file it writes. The `memory-triage` skill, shared with the other kits, proposes memory by memory whether to keep, promote, revise, merge or delete it (or that a rule already covers it), each with a reason, and changes nothing until you choose; it has no native Kimi memory to review.
 
