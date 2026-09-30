@@ -1,0 +1,11 @@
+kit = "kimi-agent-kit"
+harness = "kimi"
+version = "0.8.0"
+slate_version = "0.7.0"
+primary = "AGENTS.md"
+load = "concat"
+rules = [ "kimi-agent-kit--kimi-surface.md", "kimi-agent-kit--task-execution.md", "kimi-agent-kit--palette.md", "kimi-agent-kit--delegation.md", "kimi-agent-kit--git-workflow.md", "kimi-agent-kit--framework-conventions.md", "kimi-agent-kit--aside.md", "kimi-agent-kit--dispatch.md" ]
+skills = [ "palette-init", "palette-resume", "palette-state", "palette-record", "palette-spec", "palette-ux", "palette-ui", "palette-rules", "memory-triage" ]
+prefs = [ "aside", "dispatch", "subagent", "git", "comment" ]
+servers = [ "aside", "dispatch", "palette" ]
+legacy = [  ]

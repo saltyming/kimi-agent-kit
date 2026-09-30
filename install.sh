@@ -1,243 +1,238 @@
 #!/bin/sh
-set -e
+# install.sh - installs, reconfigures or removes kimi-agent-kit.
+#
+# This script obtains two things and runs the installer; it implements no
+# installer step itself:
+#   1. the kit payload: the dist/ folder beside this script when it has one,
+#      otherwise the archive of the kit repository (saltyming/kimi-agent-kit) at --ref;
+#   2. slate-setup: built with cargo from --slate-dir when --binaries build is
+#      given, otherwise the prebuilt binary for this platform from the slate
+#      release v0.7.0, verified against the release's checksums.txt.
+#
+# Usage: sh install.sh [install|configure|uninstall] [options]
+# The command is optional and defaults to install, also when the first argument
+# starts with a dash. Every option is passed to slate-setup, except --ref, which
+# selects the kit archive; --uninstall and --skip-mcp are kept as aliases of the
+# uninstall command and of --binaries skip, and DISPATCH_ROOTS in the environment
+# stands for --roots when none is given. Run `sh install.sh --help` for the list.
+set -eu
 
-REPO="${REPO:-saltyming/kimi-agent-kit}"
-BRANCH="${BRANCH:-main}"
-SLATE_REPO="${SLATE_REPO:-saltyming/slate-agent-kit}"
-SLATE_BRANCH="${SLATE_BRANCH:-main}"
-RAW_BASE="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
-KIMI_CODE_HOME="${KIMI_CODE_HOME:-$HOME/.kimi-code}"
-SKIP_MCP="${SKIP_MCP:-0}"
-BIN_DIR="${BIN_DIR:-$HOME/.local/bin}"
+KIT_NAME="kimi-agent-kit"
+KIT_REPO="saltyming/kimi-agent-kit"
+SLATE_REPO="${SLATE_RELEASE_REPO:-saltyming/slate-agent-kit}"
+SLATE_VERSION="0.7.0"
+RELEASE_HOST="${SLATE_RELEASE_BASE_URL:-https://github.com}"
+KIT_ARCHIVE_HOST="${KIT_ARCHIVE_BASE_URL:-https://github.com}"
 
-AGENTS_FILE="$KIMI_CODE_HOME/AGENTS.md"
-RULES_DIR="$KIMI_CODE_HOME/rules"
-SKILLS_DIR="$KIMI_CODE_HOME/skills"
-MANIFEST="$KIMI_CODE_HOME/.kimi-code-agent-kit-manifest"
+usage() {
+  cat <<USAGE
+Usage: sh install.sh [install|configure|uninstall] [options]
 
-RULE_FILES="
-kimi-agent-kit--kimi-surface.md
-kimi-agent-kit--task-execution.md
-kimi-agent-kit--palette.md
-kimi-agent-kit--delegation.md
-kimi-agent-kit--git-workflow.md
-kimi-agent-kit--framework-conventions.md
-kimi-agent-kit--aside.md
-kimi-agent-kit--dispatch.md
-"
+  install      full install or reinstall of $KIT_NAME (default)
+  configure    prefs, custom rules, native configuration and server registration
+  uninstall    reverse what install recorded
 
-SKILL_NAMES="
-palette-init
-palette-rules
-palette-spec
-palette-ui
-palette-ux
-"
+Options are passed to slate-setup. The common ones:
+  --home DIR            harness home (default: the harness's own folder)
+  --bin-dir DIR         where binaries go (default: ~/.local/bin)
+  --binaries MODE       prebuilt (default), build, or skip
+  --slate-dir DIR       slate checkout to build from (with --binaries build)
+  --roots PATHS         workspace roots for dispatch and palette
+  --set KEY=VALUE       set a prefs value, for example aside.level=auto
+  --custom-rules DIR    folder of your own *.md rule files
+  --payload DIR         install from this dist/ folder
+  --yes                 ask nothing; take current or default values
+  --dry-run             print the summary and stop
+Only for this script:
+  --ref REF             kit branch, tag or commit to download (default: main)
+  --uninstall           same as the uninstall command
+  --skip-mcp            same as --binaries skip
+Environment:
+  DISPATCH_ROOTS        same as --roots when --roots is not given
+USAGE
+}
 
 fetch() {
-    url="$1"
-    dest="$2"
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$url" -o "$dest"
-    elif command -v wget >/dev/null 2>&1; then
-        wget -qO "$dest" "$url"
-    else
-        echo "Error: curl or wget required" >&2
-        exit 1
-    fi
+  # fetch URL DEST: exit status 0 on success, 22 when the server answers 404, 1 otherwise.
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$1" -o "$2" 2>/dev/null
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "$2" "$1" 2>/dev/null
+  else
+    echo "error: curl or wget is required to download files" >&2
+    exit 1
+  fi
 }
 
-prompt_tty() {
-    label="$1"
-    default="$2"
-    answer=""
-    if [ -z "${SKIP_PROMPT:-}" ] && [ -r /dev/tty ] && [ -w /dev/tty ]; then
-        printf "%s [%s]: " "$label" "$default" >/dev/tty 2>&1 || true
-        read -r answer </dev/tty 2>/dev/null || true
-    fi
-    [ -n "$answer" ] || answer="$default"
-    printf '%s' "$answer"
-}
-
-find_slate_dir() {
-    if [ -n "${SLATE_AGENT_KIT_DIR:-}" ] && [ -x "$SLATE_AGENT_KIT_DIR/tooling/install-mcp.sh" ]; then
-        printf '%s' "$SLATE_AGENT_KIT_DIR"
-        return 0
-    fi
-    for candidate in "../slate-agent-kit" "../.."; do
-        if [ -x "$candidate/tooling/install-mcp.sh" ]; then
-            (CDPATH= cd -- "$candidate" && pwd)
-            return 0
-        fi
-    done
+sha256_of() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -d' ' -f1
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | cut -d' ' -f1
+  elif command -v openssl >/dev/null 2>&1; then
+    openssl dgst -sha256 "$1" | sed 's/^.*= *//'
+  else
     return 1
+  fi
 }
 
-uninstall() {
-    if slate_dir="$(find_slate_dir 2>/dev/null)"; then
-        KIMI_CODE_HOME="$KIMI_CODE_HOME" "$slate_dir/tooling/install-mcp.sh" --uninstall-kimi || true
-    else
-        echo "note: slate-agent-kit not found; remove the slate-agent-kit-mcp plugin manually if registered"
-    fi
-    if [ ! -f "$MANIFEST" ]; then
-        echo "No manifest at $MANIFEST. Nothing else to uninstall."
-        exit 0
-    fi
-    # Signature-guarded: only kit-signed files are removed; user-owned
-    # (-custom: signed, e.g. prefs) and unrecognized files are preserved.
-    while IFS= read -r f; do
-        case "$f" in "## "*) continue ;; esac
-        if [ -d "$f" ]; then
-            if head -8 "$f/SKILL.md" 2>/dev/null | grep -Eq '<!-- (slate-agent-kit:common|kimi-agent-kit) -->'; then
-                rm -rf "$f"
-                echo "  removed $f"
-            else
-                echo "  kept (unrecognized signature): $f"
-            fi
-        elif [ -f "$f" ]; then
-            if head -1 "$f" | grep -q -- '-custom:'; then
-                echo "  kept (user-owned): $f"
-            elif head -1 "$f" | grep -Eq '<!-- (slate-agent-kit:common|kimi-agent-kit) -->'; then
-                rm -f "$f"
-                echo "  removed $f"
-            else
-                echo "  kept (unrecognized signature): $f"
-            fi
-        fi
-    done < "$MANIFEST"
-    rm -f "$MANIFEST"
-    echo "Uninstalled kimi-agent-kit."
-    exit 0
+detect_platform() {
+  if [ -n "${SLATE_PLATFORM:-}" ]; then
+    printf '%s' "$SLATE_PLATFORM"
+    return 0
+  fi
+  arch=$(uname -m)
+  case "$arch" in
+    arm64|aarch64) arch=aarch64 ;;
+    x86_64|amd64) arch=x86_64 ;;
+    *) echo "error: unsupported architecture $arch; use --binaries build --slate-dir <slate checkout>" >&2; exit 1 ;;
+  esac
+  case "$(uname -s)" in
+    Darwin) printf '%s-apple-darwin' "$arch" ;;
+    Linux)
+      # musl distributions cannot run the glibc binary.
+      if [ -f "/lib/ld-musl-$arch.so.1" ] \
+        || { command -v ldd >/dev/null 2>&1 && ldd --version 2>&1 | grep -qi musl; }; then
+        printf '%s-unknown-linux-musl' "$arch"
+      else
+        printf '%s-unknown-linux-gnu' "$arch"
+      fi
+      ;;
+    MINGW*|MSYS*|CYGWIN*) printf '%s-pc-windows-msvc' "$arch" ;;
+    *) echo "error: unsupported system $(uname -s); use --binaries build --slate-dir <slate checkout>" >&2; exit 1 ;;
+  esac
 }
 
-for arg in "$@"; do
-    case "$arg" in
-        --uninstall) uninstall ;;
-        --skip-mcp) SKIP_MCP=1 ;;
-        -h|--help)
-            echo "Usage: $0 [--uninstall] [--skip-mcp]"
-            echo "Env: KIMI_CODE_HOME, REPO, BRANCH, SLATE_AGENT_KIT_DIR, SKIP_MCP, BIN_DIR, CUSTOM_RULES_DIR, SKIP_PROMPT"
-            exit 0
-            ;;
-    esac
+# --- arguments -------------------------------------------------------------
+case "${1:-}" in
+  install|configure|uninstall) CMD=$1; shift ;;
+  *) CMD=install ;;
+esac
+REF=main
+BINARIES=prebuilt
+SLATE_DIR=
+PAYLOAD_GIVEN=
+ROOTS_GIVEN=
+n=$#
+while [ "$n" -gt 0 ]; do
+  arg=$1
+  shift
+  n=$((n - 1))
+  case "$arg" in
+    -h|--help) usage; exit 0 ;;
+    # Aliases for the flags earlier releases had.
+    --uninstall) CMD=uninstall ;;
+    --skip-mcp) BINARIES=skip; set -- "$@" --binaries skip ;;
+    --ref)
+      [ "$n" -gt 0 ] || { echo "error: --ref needs a value" >&2; exit 2; }
+      REF=$1; shift; n=$((n - 1)) ;;
+    --ref=*) REF=${arg#--ref=} ;;
+    --binaries|--slate-dir|--payload)
+      [ "$n" -gt 0 ] || { echo "error: $arg needs a value" >&2; exit 2; }
+      val=$1; shift; n=$((n - 1))
+      case "$arg" in
+        --binaries) BINARIES=$val ;;
+        --slate-dir) SLATE_DIR=$val ;;
+        --payload) PAYLOAD_GIVEN=$val ;;
+      esac
+      set -- "$@" "$arg" "$val" ;;
+    --roots|--roots=*) ROOTS_GIVEN=1; set -- "$@" "$arg" ;;
+    --binaries=*) BINARIES=${arg#--binaries=}; set -- "$@" "$arg" ;;
+    --slate-dir=*) SLATE_DIR=${arg#--slate-dir=}; set -- "$@" "$arg" ;;
+    --payload=*) PAYLOAD_GIVEN=${arg#--payload=}; set -- "$@" "$arg" ;;
+    *) set -- "$@" "$arg" ;;
+  esac
 done
-
-echo "Installing kimi-agent-kit..."
-echo "  KIMI_CODE_HOME: $KIMI_CODE_HOME"
-echo "  AGENTS.md:  $AGENTS_FILE (manual + rules concatenated)"
-echo "  Skills:     $SKILLS_DIR/palette-*"
-
-CUSTOM_RULES_DIR="${CUSTOM_RULES_DIR:-}"
-if [ -z "$CUSTOM_RULES_DIR" ] && [ -z "${SKIP_PROMPT:-}" ]; then
-    echo ""
-    echo "Optional: append additional *.md rule files into AGENTS.md"
-    echo "(press Enter to skip)"
-    CUSTOM_RULES_DIR="$(prompt_tty "Path to a directory of custom rule files" "")"
+# The earlier Kimi installer read DISPATCH_ROOTS; it still seeds --roots.
+if [ -z "$ROOTS_GIVEN" ] && [ -n "${DISPATCH_ROOTS:-}" ]; then
+  set -- "$@" --roots "$DISPATCH_ROOTS"
 fi
 
-mkdir -p "$KIMI_CODE_HOME" "$RULES_DIR" "$SKILLS_DIR"
-echo "## install @ $(date -u +%FT%TZ 2>/dev/null || date)" > "$MANIFEST"
+TMP=$(mktemp -d "${TMPDIR:-/tmp}/slate-setup.XXXXXX")
+trap 'rm -rf "$TMP"' EXIT
+trap 'exit 1' HUP INT TERM
 
-tmp_dir="$(mktemp -d)"
-trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
-
-if [ -f "$AGENTS_FILE" ] && ! head -1 "$AGENTS_FILE" | grep -Fq '<!-- slate-agent-kit:common -->'; then
-    bak="$AGENTS_FILE.bak-$(date -u +%Y%m%dT%H%M%SZ)"
-    cp -p "$AGENTS_FILE" "$bak"
-    echo "WARNING: existing $AGENTS_FILE is not managed by this kit; backed up to $bak"
-    echo "## backup: $bak" >> "$MANIFEST"
+# --- the kit payload -------------------------------------------------------
+HERE=$(unset CDPATH; cd -- "$(dirname -- "$0")" 2>/dev/null && pwd) || HERE=.
+if [ -n "$PAYLOAD_GIVEN" ]; then
+  PAYLOAD=$PAYLOAD_GIVEN
+elif [ -f "$HERE/dist/kit.toml" ]; then
+  PAYLOAD=$HERE/dist
+elif [ -f "./dist/kit.toml" ]; then
+  PAYLOAD=$(pwd)/dist
+else
+  echo "Downloading $KIT_NAME ($REF)..."
+  fetch "$KIT_ARCHIVE_HOST/$KIT_REPO/archive/$REF.tar.gz" "$TMP/kit.tar.gz" \
+    || { echo "error: cannot download the $KIT_NAME archive for '$REF'" >&2; exit 1; }
+  mkdir "$TMP/kit"
+  tar xzf "$TMP/kit.tar.gz" -C "$TMP/kit"
+  PAYLOAD=
+  for d in "$TMP"/kit/*/dist; do
+    [ -f "$d/kit.toml" ] && PAYLOAD=$d && break
+  done
+  [ -n "$PAYLOAD" ] || { echo "error: the archive for '$REF' has no dist/kit.toml" >&2; exit 1; }
 fi
 
-: > "$AGENTS_FILE"
-first=1
-fetch "$RAW_BASE/AGENTS.md" "$tmp_dir/AGENTS.md"
-for f in AGENTS.md $RULE_FILES; do
-    if [ "$first" -eq 0 ]; then
-        printf '\n---\n\n' >> "$AGENTS_FILE"
-    fi
-    first=0
-    if [ "$f" = "AGENTS.md" ]; then
-        cat "$tmp_dir/AGENTS.md" >> "$AGENTS_FILE"
-    else
-        src="$tmp_dir/$f"
-        fetch "$RAW_BASE/kimi-rules/$f" "$src"
-        cat "$src" >> "$AGENTS_FILE"
-        dest="$RULES_DIR/$f"
-        cp "$src" "$dest"
-        echo "$dest" >> "$MANIFEST"
-        echo "  rule: $dest"
-    fi
-done
-printf '\n' >> "$AGENTS_FILE"
-echo "$AGENTS_FILE" >> "$MANIFEST"
-echo "  wrote $AGENTS_FILE"
-
-if [ -n "$CUSTOM_RULES_DIR" ] && [ -d "$CUSTOM_RULES_DIR" ]; then
-    echo "Appending custom rules from $CUSTOM_RULES_DIR..."
-    for src in "$CUSTOM_RULES_DIR"/*.md; do
-        [ -f "$src" ] || continue
-        {
-            echo ""
-            echo "---"
-            echo ""
-            cat "$src"
-        } >> "$AGENTS_FILE"
-        echo "  custom: $(basename "$src")"
-    done
-fi
-
-for s in $SKILL_NAMES; do
-    dest="$SKILLS_DIR/$s"
-    rm -rf "$dest"
-    mkdir -p "$dest"
-    fetch "$RAW_BASE/kimi-skills/$s/SKILL.md" "$dest/SKILL.md"
-    echo "$dest" >> "$MANIFEST"
-    echo "  skill: $dest"
-done
-
-# Preference files (aside, dispatch, git, comment) — generated next to the rules, read on
-# demand; user-owned after generation (custom signature, uninstall keeps them).
-prefs_dir="$tmp_dir/scripts"
-mkdir -p "$prefs_dir"
-fetch "$RAW_BASE/scripts/configure-prefs.sh" "$prefs_dir/configure-prefs.sh"
-fetch "$RAW_BASE/scripts/kimi-agent-kit--aside-prefs.md.tmpl" "$prefs_dir/kimi-agent-kit--aside-prefs.md.tmpl"
-fetch "$RAW_BASE/scripts/kimi-agent-kit--dispatch-prefs.md.tmpl" "$prefs_dir/kimi-agent-kit--dispatch-prefs.md.tmpl"
-fetch "$RAW_BASE/scripts/kimi-agent-kit--git-prefs.md.tmpl" "$prefs_dir/kimi-agent-kit--git-prefs.md.tmpl"
-fetch "$RAW_BASE/scripts/kimi-agent-kit--comment-prefs.md.tmpl" "$prefs_dir/kimi-agent-kit--comment-prefs.md.tmpl"
-if [ -n "${SKIP_PROMPT:-}" ]; then
-    PREFS_PROMPT=no
-    export PREFS_PROMPT
-fi
-RULES_DIR="$RULES_DIR" MANIFEST="$MANIFEST" PREFIX="kimi-agent-kit" sh "$prefs_dir/configure-prefs.sh"
-
-install_mcp() {
-    [ "$SKIP_MCP" != "1" ] || {
-        echo "Skipping MCP registration because SKIP_MCP=1."
-        return 0
-    }
-    # dispatch on Kimi is useless without a workspace root: the plugin runtime
-    # spawns MCP servers outside any project, so with no root every
-    # dispatch_submit returns no_project_root. Prompt for one if not preset.
-    if [ -z "${DISPATCH_ROOTS:-}" ] && [ -z "${SKIP_PROMPT:-}" ] && [ -r /dev/tty ] && [ -w /dev/tty ]; then
-        printf 'Absolute workspace root for dispatch (blank to skip; dispatch then rejects every working_dir): ' > /dev/tty
-        read -r _roots < /dev/tty || _roots=""
-        [ -n "$_roots" ] && DISPATCH_ROOTS="$_roots"
-    fi
-    if slate_dir="$(find_slate_dir 2>/dev/null)"; then
-        BIN_DIR="$BIN_DIR" KIMI_CODE_HOME="$KIMI_CODE_HOME" DISPATCH_ROOTS="${DISPATCH_ROOTS:-}" "$slate_dir/tooling/install-mcp.sh" --configure-kimi
-        return 0
-    fi
-    command -v git >/dev/null 2>&1 || {
-        echo "Error: git is required to fetch slate-agent-kit for MCP registration. Re-run with SKIP_MCP=1 to install rules only." >&2
+# --- slate-setup -----------------------------------------------------------
+if [ "$BINARIES" = build ]; then
+  [ -n "$SLATE_DIR" ] || { echo "error: --binaries build needs --slate-dir <slate checkout>" >&2; exit 2; }
+  command -v cargo >/dev/null 2>&1 || { echo "error: cargo is required for --binaries build" >&2; exit 1; }
+  echo "Building slate-setup in $SLATE_DIR..."
+  cargo build --release -p slate-setup --manifest-path "$SLATE_DIR/Cargo.toml"
+  SETUP=${CARGO_TARGET_DIR:-$SLATE_DIR/target}/release/slate-setup
+else
+  PLATFORM=$(detect_platform)
+  case "$PLATFORM" in
+    *windows*) EXT=zip; EXE=slate-setup.exe ;;
+    *) EXT=tar.gz; EXE=slate-setup ;;
+  esac
+  ASSET="slate-setup-$PLATFORM.$EXT"
+  BASE="$RELEASE_HOST/$SLATE_REPO/releases/download/v$SLATE_VERSION"
+  LATEST="$RELEASE_HOST/$SLATE_REPO/releases/latest/download"
+  echo "Downloading slate-setup ($PLATFORM)..."
+  if ! fetch "$BASE/$ASSET" "$TMP/$ASSET"; then
+    echo "slate release v$SLATE_VERSION has no $ASSET; using the latest release."
+    BASE=$LATEST
+    fetch "$BASE/$ASSET" "$TMP/$ASSET" \
+      || { echo "error: cannot download $ASSET; use --binaries build --slate-dir <slate checkout>" >&2; exit 1; }
+  fi
+  if fetch "$BASE/checksums.txt" "$TMP/checksums.txt"; then
+    expected=$(awk -v f="$ASSET" '$2 == f || $2 == "*" f { print $1; exit }' "$TMP/checksums.txt")
+    if [ -z "$expected" ]; then
+      echo "warning: checksums.txt has no entry for $ASSET; it is not verified." >&2
+    elif actual=$(sha256_of "$TMP/$ASSET"); then
+      if [ "$expected" != "$actual" ]; then
+        echo "error: checksum mismatch for $ASSET" >&2
+        echo "  expected: $expected" >&2
+        echo "  actual:   $actual" >&2
         exit 1
-    }
-    slate_tmp="$tmp_dir/slate-agent-kit"
-    git clone --depth=1 --branch "$SLATE_BRANCH" "https://github.com/$SLATE_REPO.git" "$slate_tmp"
-    BIN_DIR="$BIN_DIR" KIMI_CODE_HOME="$KIMI_CODE_HOME" DISPATCH_ROOTS="${DISPATCH_ROOTS:-}" "$slate_tmp/tooling/install-mcp.sh" --configure-kimi
-}
+      fi
+    else
+      echo "warning: no sha256 tool found (sha256sum, shasum or openssl); $ASSET is not verified." >&2
+    fi
+  else
+    echo "warning: the release has no checksums.txt; $ASSET is not verified." >&2
+  fi
+  case "$EXT" in
+    zip)
+      command -v unzip >/dev/null 2>&1 || { echo "error: unzip is required" >&2; exit 1; }
+      unzip -oq "$TMP/$ASSET" -d "$TMP" ;;
+    *) tar xzf "$TMP/$ASSET" -C "$TMP" ;;
+  esac
+  SETUP=$TMP/$EXE
+  chmod +x "$SETUP"
+fi
 
-install_mcp
-
-echo ""
-echo "Installed kimi-agent-kit."
-echo "Manifest: $MANIFEST"
+# --- run -------------------------------------------------------------------
+if [ -n "$PAYLOAD_GIVEN" ]; then
+  set -- "$CMD" "$@"
+else
+  set -- "$CMD" --payload "$PAYLOAD" "$@"
+fi
+status=0
+if [ -r /dev/tty ] && (: </dev/tty) 2>/dev/null; then
+  "$SETUP" "$@" </dev/tty || status=$?
+else
+  "$SETUP" "$@" || status=$?
+fi
+exit "$status"

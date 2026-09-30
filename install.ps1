@@ -1,176 +1,231 @@
-param(
-    [switch]$Uninstall,
-    [switch]$SkipMcp,
-    [string]$KimiCodeHome = "$env:USERPROFILE\.kimi-code",
-    [string]$Repo = "saltyming/kimi-agent-kit",
-    [string]$Branch = "main",
-    [string]$SlateRepo = "saltyming/slate-agent-kit",
-    [string]$DispatchRoots = $env:DISPATCH_ROOTS
-)
+# install.ps1 - installs, reconfigures or removes kimi-agent-kit on Windows.
+#
+# This script obtains two things and runs the installer; it implements no
+# installer step itself:
+#   1. the kit payload: the dist\ folder beside this script when it has one,
+#      otherwise the archive of the kit repository (saltyming/kimi-agent-kit) at --ref;
+#   2. slate-setup: built with cargo from --slate-dir when --binaries build is
+#      given, otherwise the prebuilt binary for this platform from the slate
+#      release v0.7.0, verified against the release's checksums.txt.
+#
+# Usage: .\install.ps1 [install|configure|uninstall] [options]
+# The command is optional and defaults to install, also when the first argument
+# starts with a dash. Every option is passed to slate-setup, except --ref, which
+# selects the kit archive; --uninstall and --skip-mcp are kept as aliases of the
+# uninstall command and of --binaries skip; -Uninstall, -SkipMcp and
+# -DispatchRoots <paths> from the earlier script work too, and $env:DISPATCH_ROOTS
+# stands for --roots when none is given. slate-setup reads its questions from
+# the console itself, so nothing here redirects standard input.
+#
+# One-liner (arguments after the script block go to the script):
+#   & ([scriptblock]::Create((Invoke-RestMethod https://raw.githubusercontent.com/saltyming/kimi-agent-kit/main/install.ps1))) install
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.ServicePointManager]::SecurityProtocol } catch { }
 
-$RawBase = "https://raw.githubusercontent.com/$Repo/$Branch"
-$AgentsFile = Join-Path $KimiCodeHome "AGENTS.md"
-$RulesDir = Join-Path $KimiCodeHome "rules"
-$SkillsDir = Join-Path $KimiCodeHome "skills"
-$Manifest = Join-Path $KimiCodeHome ".kimi-code-agent-kit-manifest"
+$KitName = 'kimi-agent-kit'
+$KitRepo = 'saltyming/kimi-agent-kit'
+$SlateRepo = if ($env:SLATE_RELEASE_REPO) { $env:SLATE_RELEASE_REPO } else { 'saltyming/slate-agent-kit' }
+$SlateVersion = '0.7.0'
+$ReleaseHost = if ($env:SLATE_RELEASE_BASE_URL) { $env:SLATE_RELEASE_BASE_URL.TrimEnd('/') } else { 'https://github.com' }
+$KitArchiveHost = if ($env:KIT_ARCHIVE_BASE_URL) { $env:KIT_ARCHIVE_BASE_URL.TrimEnd('/') } else { 'https://github.com' }
 
-# Concat order matters: the manual first, then the surface binding, then policy.
-$RuleFiles = @(
-    "kimi-agent-kit--kimi-surface.md",
-    "kimi-agent-kit--task-execution.md",
-    "kimi-agent-kit--palette.md",
-    "kimi-agent-kit--delegation.md",
-    "kimi-agent-kit--git-workflow.md",
-    "kimi-agent-kit--framework-conventions.md",
-    "kimi-agent-kit--aside.md",
-    "kimi-agent-kit--dispatch.md"
-)
+function Show-Usage {
+    @"
+Usage: .\install.ps1 [install|configure|uninstall] [options]
 
-$SkillNames = @("palette-init", "palette-rules", "palette-spec", "palette-ui", "palette-ux")
+  install      full install or reinstall of $KitName (default)
+  configure    prefs, custom rules, native configuration and server registration
+  uninstall    reverse what install recorded
 
-function Fetch([string]$Url, [string]$Dest) {
-    Invoke-WebRequest -Uri $Url -OutFile $Dest
+Options are passed to slate-setup. The common ones:
+  --home DIR            harness home (default: the harness's own folder)
+  --bin-dir DIR         where binaries go (default: %USERPROFILE%\.local\bin)
+  --binaries MODE       prebuilt (default), build, or skip
+  --slate-dir DIR       slate checkout to build from (with --binaries build)
+  --roots PATHS         workspace roots for dispatch and palette (separated by ;)
+  --set KEY=VALUE       set a prefs value, for example aside.level=auto
+  --custom-rules DIR    folder of your own *.md rule files
+  --payload DIR         install from this dist folder
+  --yes                 ask nothing; take current or default values
+  --dry-run             print the summary and stop
+Only for this script:
+  --ref REF             kit branch, tag or commit to download (default: main)
+  --uninstall           same as the uninstall command
+  --skip-mcp            same as --binaries skip
+  -Uninstall, -SkipMcp, -DispatchRoots PATHS    the switches of the earlier script
+Environment:
+  DISPATCH_ROOTS        same as --roots when --roots is not given
+"@
 }
 
-if ($Uninstall) {
-    if (-not (Test-Path $Manifest)) {
-        Write-Host "No manifest at $Manifest. Nothing to uninstall."
-        return
+function Get-Download([string]$Url, [string]$Dest) {
+    # Returns $true on success and $false when the server answers 404.
+    try {
+        Invoke-WebRequest -Uri $Url -OutFile $Dest -UseBasicParsing
+        return $true
+    } catch {
+        $status = $null
+        if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
+        if ($status -eq 404) { return $false }
+        throw "cannot download ${Url}: $($_.Exception.Message)"
     }
-    # Signature-guarded: keep user-owned (-custom: signed) and unrecognized files.
-    Get-Content $Manifest | ForEach-Object {
-        if ($_ -match "^## ") { return }
-        if (Test-Path $_ -PathType Container) {
-            $skill = Join-Path $_ "SKILL.md"
-            $head = if (Test-Path $skill) { (Get-Content $skill -TotalCount 8) -join "`n" } else { "" }
-            if ($head -match "slate-agent-kit:common|kimi-agent-kit") {
-                Remove-Item $_ -Recurse -Force
-                Write-Host "  removed $_"
-            } else {
-                Write-Host "  kept (unrecognized signature): $_"
-            }
-        } elseif (Test-Path $_ -PathType Leaf) {
-            $head = Get-Content $_ -TotalCount 1
-            if ($head -match "-custom:") {
-                Write-Host "  kept (user-owned): $_"
-            } elseif ($head -match "slate-agent-kit:common|kimi-agent-kit") {
-                Remove-Item $_ -Force
-                Write-Host "  removed $_"
-            } else {
-                Write-Host "  kept (unrecognized signature): $_"
-            }
+}
+
+# --- arguments ---------------------------------------------------------------
+$rest = New-Object System.Collections.Generic.List[string]
+foreach ($a in $args) { $rest.Add([string]$a) }
+$cmd = 'install'
+if ($rest.Count -gt 0 -and @('install', 'configure', 'uninstall') -contains $rest[0]) {
+    $cmd = $rest[0]
+    $rest.RemoveAt(0)
+}
+$ref = 'main'
+$binaries = 'prebuilt'
+$slateDir = $null
+$payloadGiven = $null
+$rootsGiven = $false
+$passthrough = New-Object System.Collections.Generic.List[string]
+$i = 0
+while ($i -lt $rest.Count) {
+    $a = $rest[$i]
+    switch -Regex ($a) {
+        '^(-h|--help)$' { Show-Usage; exit 0 }
+        '^--ref$' { $i++; if ($i -ge $rest.Count) { throw '--ref needs a value' }; $ref = $rest[$i] }
+        '^--ref=(.*)$' { $ref = $Matches[1] }
+        # Aliases for the flags earlier releases had.
+        '^(--uninstall|-Uninstall)$' { $cmd = 'uninstall' }
+        '^(--skip-mcp|-SkipMcp)$' { $binaries = 'skip'; $passthrough.Add('--binaries'); $passthrough.Add('skip') }
+        '^-DispatchRoots$' {
+            $i++
+            if ($i -ge $rest.Count) { throw '-DispatchRoots needs a value' }
+            $rootsGiven = $true
+            $passthrough.Add('--roots')
+            $passthrough.Add($rest[$i])
         }
+        '^-DispatchRoots:(.*)$' { $rootsGiven = $true; $passthrough.Add('--roots'); $passthrough.Add($Matches[1]) }
+        '^--roots$' {
+            $i++
+            if ($i -ge $rest.Count) { throw '--roots needs a value' }
+            $rootsGiven = $true
+            $passthrough.Add($a)
+            $passthrough.Add($rest[$i])
+        }
+        '^--roots=(.*)$' { $rootsGiven = $true; $passthrough.Add($a) }
+        '^--(binaries|slate-dir|payload)$' {
+            $name = $Matches[1]
+            $i++
+            if ($i -ge $rest.Count) { throw "$a needs a value" }
+            $val = $rest[$i]
+            if ($name -eq 'binaries') { $binaries = $val }
+            elseif ($name -eq 'slate-dir') { $slateDir = $val }
+            else { $payloadGiven = $val }
+            $passthrough.Add($a)
+            $passthrough.Add($val)
+        }
+        '^--binaries=(.*)$' { $binaries = $Matches[1]; $passthrough.Add($a) }
+        '^--slate-dir=(.*)$' { $slateDir = $Matches[1]; $passthrough.Add($a) }
+        '^--payload=(.*)$' { $payloadGiven = $Matches[1]; $passthrough.Add($a) }
+        default { $passthrough.Add($a) }
     }
-    Remove-Item $Manifest -Force
-    Write-Host "Uninstalled."
-    return
+    $i++
 }
 
-Write-Host "Installing kimi-agent-kit..."
-Write-Host "  KIMI_CODE_HOME: $KimiCodeHome"
-Write-Host "  AGENTS.md:  $AgentsFile (manual + rules concatenated)"
-
-New-Item -ItemType Directory -Force -Path $KimiCodeHome, $RulesDir, $SkillsDir | Out-Null
-"## install @ $((Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'))" | Set-Content -Path $Manifest
-
-# Back up a pre-existing AGENTS.md that this kit does not manage.
-if (Test-Path $AgentsFile) {
-    $head = Get-Content $AgentsFile -TotalCount 1
-    if ($head -notmatch "slate-agent-kit:common") {
-        $bak = "$AgentsFile.bak-$((Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssZ'))"
-        Copy-Item $AgentsFile $bak
-        Write-Host "WARNING: existing $AgentsFile is not managed by this kit; backed up to $bak"
-        Add-Content -Path $Manifest -Value "## backup: $bak"
-    }
+# The earlier installers read DISPATCH_ROOTS; it still seeds --roots.
+if (-not $rootsGiven -and $env:DISPATCH_ROOTS) {
+    $passthrough.Add('--roots')
+    $passthrough.Add($env:DISPATCH_ROOTS)
 }
 
-$tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("kimi-agent-kit-" + [System.Guid]::NewGuid())
-New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+$tmp = Join-Path ([IO.Path]::GetTempPath()) ('slate-setup-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $tmp | Out-Null
+$exitCode = 1
 try {
-    Fetch "$RawBase/AGENTS.md" (Join-Path $tmp "AGENTS.md")
-    $parts = @((Get-Content (Join-Path $tmp "AGENTS.md") -Raw))
-    foreach ($f in $RuleFiles) {
-        $src = Join-Path $tmp $f
-        Fetch "$RawBase/kimi-rules/$f" $src
-        $parts += (Get-Content $src -Raw)
-        $dest = Join-Path $RulesDir $f
-        Copy-Item $src $dest -Force
-        Add-Content -Path $Manifest -Value $dest
-        Write-Host "  rule: $dest"
-    }
-    ($parts -join "`n---`n`n") | Set-Content -Path $AgentsFile -NoNewline
-    Add-Content -Path $AgentsFile -Value ""
-    Add-Content -Path $Manifest -Value $AgentsFile
-    Write-Host "  wrote $AgentsFile"
-
-    foreach ($s in $SkillNames) {
-        $dest = Join-Path $SkillsDir $s
-        if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
-        New-Item -ItemType Directory -Force -Path $dest | Out-Null
-        Fetch "$RawBase/kimi-skills/$s/SKILL.md" (Join-Path $dest "SKILL.md")
-        Add-Content -Path $Manifest -Value $dest
-        Write-Host "  skill: $dest"
-    }
-} finally {
-    Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
-}
-
-# ── Shared MCP servers (aside, dispatch) as a local Kimi plugin ───────
-# Registered natively on Windows via the SAME plugin writer the POSIX path uses
-# (slate's install-mcp.sh cannot run here). Needs node + the slate release
-# binaries. write-kimi-plugin.js was fetched alongside the rules into scripts/.
-if (-not $SkipMcp) {
-    if (Get-Command node -ErrorAction SilentlyContinue) {
-        $arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "aarch64" } else { "x86_64" }
-        $platform = "$arch-pc-windows-msvc"
-        $binDir = Join-Path $KimiCodeHome "slate-agent-kit\bin"
-        New-Item -ItemType Directory -Force -Path $binDir | Out-Null
-        $mcpOk = $true
-        foreach ($srv in @("aside", "dispatch")) {
-            try {
-                $url = "https://github.com/$SlateRepo/releases/latest/download/$srv-$platform.zip"
-                $zip = Join-Path ([System.IO.Path]::GetTempPath()) ("$srv-$platform-" + [System.Guid]::NewGuid() + ".zip")
-                Invoke-WebRequest -Uri $url -OutFile $zip
-                $ex = Join-Path ([System.IO.Path]::GetTempPath()) ("slate-$srv-" + [System.Guid]::NewGuid())
-                Expand-Archive -Path $zip -DestinationPath $ex -Force
-                Copy-Item (Join-Path $ex "$srv.exe") (Join-Path $binDir "$srv.exe") -Force
-                Remove-Item $zip -Force -ErrorAction SilentlyContinue
-                Remove-Item $ex -Recurse -Force -ErrorAction SilentlyContinue
-            } catch {
-                Write-Host "  Could not fetch $srv from $SlateRepo releases: $_"
-                $mcpOk = $false
-            }
-        }
-        if ($mcpOk) {
-            $writer = Join-Path ([System.IO.Path]::GetTempPath()) ("write-kimi-plugin-" + [System.Guid]::NewGuid() + ".js")
-            Fetch "$RawBase/scripts/write-kimi-plugin.js" $writer
-            $defaultHome = Join-Path $env:USERPROFILE ".kimi-code"
-            $rootsArg = if ($DispatchRoots) { $DispatchRoots } else { "" }
-            & node $writer $KimiCodeHome (Join-Path $binDir "aside.exe") (Join-Path $binDir "dispatch.exe") $defaultHome $rootsArg
-            Remove-Item $writer -Force -ErrorAction SilentlyContinue
-            Write-Host "  Registered slate-agent-kit-mcp plugin (aside + dispatch)."
-            if (-not $DispatchRoots) {
-                Write-Host "  Note: no -DispatchRoots given; dispatch will reject working_dirs (no_project_root) until set."
-            }
-        }
+    # --- the kit payload -------------------------------------------------------
+    $here = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
+    if ($payloadGiven) {
+        $payload = $payloadGiven
+    } elseif (Test-Path -LiteralPath (Join-Path $here 'dist\kit.toml')) {
+        $payload = Join-Path $here 'dist'
     } else {
-        Write-Host "NOTE: node not found — skipped MCP plugin registration. Install Node.js and re-run,"
-        Write-Host "or use slate's tooling/install-mcp.sh --configure-kimi under WSL/POSIX."
+        Write-Host "Downloading $KitName ($ref)..."
+        $zip = Join-Path $tmp 'kit.zip'
+        if (-not (Get-Download "$KitArchiveHost/$KitRepo/archive/$ref.zip" $zip)) {
+            throw "cannot download the $KitName archive for '$ref'"
+        }
+        Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $tmp 'kit')
+        $payload = $null
+        foreach ($d in Get-ChildItem -LiteralPath (Join-Path $tmp 'kit') -Directory) {
+            $candidate = Join-Path $d.FullName 'dist'
+            if (Test-Path -LiteralPath (Join-Path $candidate 'kit.toml')) { $payload = $candidate; break }
+        }
+        if (-not $payload) { throw "the archive for '$ref' has no dist\kit.toml" }
     }
-}
 
-Write-Host ""
-Write-Host "Installed kimi-agent-kit."
-Write-Host "Manifest: $Manifest"
-Write-Host ""
-# ── aside, dispatch, git, comment preferences (the shared configure-prefs.ps1) ──
-$prefsTmp = Join-Path $env:TEMP ("kimi-prefs-" + [System.Guid]::NewGuid())
-New-Item -ItemType Directory -Force -Path $prefsTmp | Out-Null
-Invoke-WebRequest -Uri "$RawBase/scripts/configure-prefs.ps1" -OutFile (Join-Path $prefsTmp "configure-prefs.ps1")
-foreach ($t in @("aside", "dispatch", "git", "comment")) {
-    Invoke-WebRequest -Uri "$RawBase/scripts/kimi-agent-kit--$t-prefs.md.tmpl" -OutFile (Join-Path $prefsTmp "kimi-agent-kit--$t-prefs.md.tmpl")
+    # --- slate-setup -------------------------------------------------------------
+    if ($binaries -eq 'build') {
+        if (-not $slateDir) { throw '--binaries build needs --slate-dir <slate checkout>' }
+        if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) { throw 'cargo is required for --binaries build' }
+        Write-Host "Building slate-setup in $slateDir..."
+        & cargo build --release -p slate-setup --manifest-path (Join-Path $slateDir 'Cargo.toml')
+        if ($LASTEXITCODE -ne 0) { throw 'cargo build failed' }
+        $targetDir = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { Join-Path $slateDir 'target' }
+        $setup = Join-Path $targetDir 'release\slate-setup.exe'
+    } else {
+        if ($env:SLATE_PLATFORM) {
+            $platform = $env:SLATE_PLATFORM
+        } else {
+            $arch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+            switch ($arch) {
+                'ARM64' { $cpu = 'aarch64' }
+                'AMD64' { $cpu = 'x86_64' }
+                default { throw "unsupported architecture $arch; use --binaries build --slate-dir <slate checkout>" }
+            }
+            $platform = "$cpu-pc-windows-msvc"
+        }
+        $asset = "slate-setup-$platform.zip"
+        $base = "$ReleaseHost/$SlateRepo/releases/download/v$SlateVersion"
+        $latest = "$ReleaseHost/$SlateRepo/releases/latest/download"
+        Write-Host "Downloading slate-setup ($platform)..."
+        $archive = Join-Path $tmp $asset
+        if (-not (Get-Download "$base/$asset" $archive)) {
+            Write-Host "slate release v$SlateVersion has no $asset; using the latest release."
+            $base = $latest
+            if (-not (Get-Download "$base/$asset" $archive)) {
+                throw "cannot download $asset; use --binaries build --slate-dir <slate checkout>"
+            }
+        }
+        $sums = Join-Path $tmp 'checksums.txt'
+        if (Get-Download "$base/checksums.txt" $sums) {
+            $line = Get-Content -LiteralPath $sums | Where-Object { $_ -match "^\s*([0-9a-fA-F]{64})\s+\*?$([regex]::Escape($asset))\s*$" } | Select-Object -First 1
+            if (-not $line) {
+                Write-Warning "checksums.txt has no entry for $asset; it is not verified."
+            } else {
+                $expected = ($line -split '\s+')[0].ToLowerInvariant()
+                $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+                if ($expected -ne $actual) {
+                    throw "checksum mismatch for $asset (expected $expected, got $actual)"
+                }
+            }
+        } else {
+            Write-Warning "the release has no checksums.txt; $asset is not verified."
+        }
+        Expand-Archive -LiteralPath $archive -DestinationPath $tmp -Force
+        $setup = Join-Path $tmp 'slate-setup.exe'
+    }
+
+    # --- run -----------------------------------------------------------------------
+    $runArgs = New-Object System.Collections.Generic.List[string]
+    $runArgs.Add($cmd)
+    if (-not $payloadGiven) { $runArgs.Add('--payload'); $runArgs.Add($payload) }
+    foreach ($p in $passthrough) { $runArgs.Add($p) }
+    & $setup @runArgs
+    $exitCode = $LASTEXITCODE
+} catch {
+    [Console]::Error.WriteLine("error: $($_.Exception.Message)")
+    $exitCode = 1
+} finally {
+    Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
 }
-& (Join-Path $prefsTmp "configure-prefs.ps1") -RulesDir $RulesDir -Prefix "kimi-agent-kit" -Manifest $Manifest
-Remove-Item $prefsTmp -Recurse -Force -ErrorAction SilentlyContinue
+exit $exitCode
