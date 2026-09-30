@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.1 - 2026-09-30
+
+**Amends cutoff in the contributing document (RFC-0010).** Ships alongside claude-agent-kit 13.1.1, codex-agent-kit 0.9.1 and slate-agent-kit v0.8.1.
+
+- The date until which a record may carry `Amends` no longer lives in `_palette/layout.rst` (`amends-until`, never committed, so a checkout without `_palette/` reported every `Amends` as an error). It is a field of the contributing document: a new last section `Records` with `:Amends: none | until <YYYY-MM-DD>`, checked the same way with and without a layout. P012 checks `checker` only.
+- **Upgrading a palette project.** Remove `:amends-until:` from `_palette/layout.rst` (P012 until removed) and add the `Records` section to the contributing document (P002 until added); a project without a contributing document admits no `Amends`.
+
+Verified: locally on macOS with the latest stable toolchain, `cargo test --workspace` (485 passed), `clippy -D warnings`, `fmt --check`, `sh tooling/render-kit.sh` for all three kits, `validate.sh` and `palette check` on the slate repository with and without `_palette/`; palette 0.2.1 installed from this checkout.
+
 ## 0.9.0 - 2026-09-30
 
 **Record header rules and several active phases.** Ships alongside claude-agent-kit 13.1.0, codex-agent-kit 0.9.0 and slate-agent-kit v0.8.0; decided in slate's RFC-0009.
