@@ -2,7 +2,7 @@
 
 An operating manual and rule set for the Kimi Code CLI (`AGENTS.md` plus rule files), the palette document system with its skills, and three shared MCP servers: `aside` (second opinions from another model family), `dispatch` (asynchronous execution by a codex, opencode or claude backend) and `palette` (reads, checks and writes palette documents). One installer, `slate-setup`, installs all of it, registers the servers as a Kimi plugin, writes your preferences and sets the subagent default model.
 
-This is kimi-agent-kit 0.9.1. Its rules, skills, templates and prefs templates are rendered from [`slate-agent-kit`](https://github.com/saltyming/slate-agent-kit), which also builds the servers and the installer; its release v0.7.0 provides the binaries. The Claude and Codex kits are rendered from the same source and differ only where the harness does.
+This is kimi-agent-kit 0.10.1. Its rules, skills, templates and prefs templates are rendered from [`slate-agent-kit`](https://github.com/saltyming/slate-agent-kit), which also builds the servers and the installer; its release v0.7.0 provides the binaries. The Claude and Codex kits are rendered from the same source and differ only where the harness does.
 
 ## What's Inside
 
@@ -88,7 +88,7 @@ Kimi Code has no native memory, so the invariant applies when you ask the agent 
 
 ### aside: consultation
 
-Asks another model family for a read-only opinion through a locally installed CLI. Kimi Code has no built-in advisor, so aside is the second-opinion surface: `aside_codex` (OpenAI), `aside_copilot` (GitHub) and `aside_claude` (Anthropic); `aside_list` reports which are installed.
+Asks another model family for a read-only opinion through a locally installed CLI. Kimi Code has no built-in advisor, so aside is the second-opinion surface: `aside_codex` (OpenAI) and `aside_claude` (Anthropic); `aside_list` reports which are installed.
 
 - **Transcript auto-forwarded, redacted.** `text` passes through verbatim; `tool_use`, `tool_result` and `thinking` become placeholders. 100 KB cap; `include_transcript=false` for decontextualised questions.
 - **Read-only, non-interactive.** Each backend can read files and grep the workspace itself but cannot edit files or run shells.
@@ -127,7 +127,7 @@ Five user-owned files in `$KIMI_CODE_HOME/rules/`. They are not part of the comb
 
 | File | Sets | Installed default |
 |---|---|---|
-| `kimi-agent-kit--aside-prefs.md` | Level; backend (`codex`, `copilot`, `claude`); model, reasoning effort and model fallback for the chosen backend | `suggest`, `codex` |
+| `kimi-agent-kit--aside-prefs.md` | Level; backend (`codex` or `claude`); model, reasoning effort and model fallback for the chosen backend | `suggest`, `codex` |
 | `kimi-agent-kit--dispatch-prefs.md` | Level; backend (`codex`, `opencode`, `claude`); model; reasoning effort; model fallback | `suggest`, `codex` |
 | `kimi-agent-kit--subagent-prefs.md` | Level; default model; reasoning effort | `suggest`, harness default |
 | `kimi-agent-kit--git-prefs.md` | Commit signing, model attribution, commit message format, PR body format, branch naming | `unset`: the agent asks at first need and records the answer |
@@ -159,7 +159,7 @@ irm https://raw.githubusercontent.com/saltyming/kimi-agent-kit/main/install.ps1 
 
 The PowerShell script also accepts the earlier installers' switches: `-Uninstall`, `-SkipMcp` and `-DispatchRoots <paths>`.
 
-The entry point downloads the prebuilt `slate-setup` for your platform from slate release v0.8.1, verifies its checksum, and runs it on the kit's payload. `slate-setup` performs every step, with the same code on Linux, macOS and Windows.
+The entry point downloads the prebuilt `slate-setup` for your platform from slate release v0.9.1, verifies its checksum, and runs it on the kit's payload. `slate-setup` performs every step, with the same code on Linux, macOS and Windows.
 
 | Command | Does |
 |---|---|
@@ -169,7 +169,7 @@ The entry point downloads the prebuilt `slate-setup` for your platform from slat
 
 | Option | Meaning |
 |---|---|
-| `--binaries prebuilt\|build\|skip` | `prebuilt` (default) downloads `aside`, `dispatch` and `palette` from the slate release, checked against `checksums.txt` (if release v0.8.1 does not exist it uses the latest and says so). `build` runs `cargo build --release` in `--slate-dir` and needs Rust. `skip` installs no binaries and registers no servers. `--skip-mcp` still works. |
+| `--binaries prebuilt\|build\|skip` | `prebuilt` (default) downloads `aside`, `dispatch` and `palette` from the slate release, checked against `checksums.txt` (if release v0.9.1 does not exist it uses the latest and says so). `build` runs `cargo build --release` in `--slate-dir` and needs Rust. `skip` installs no binaries and registers no servers. `--skip-mcp` still works. |
 | `--slate-dir <dir>` | The slate checkout to build from. |
 | `--roots <paths>` | Workspace roots dispatch and palette may work in, as an OS path list. When it is not given, the `DISPATCH_ROOTS` environment variable is used. Kimi needs one (see above). |
 | `--set <key>=<value>` | Pre-answers a prefs question; repeatable. Keys are `<file>.<key>`, for example `aside.level=auto` or `git.signing=no-gpg-sign`. |
@@ -232,7 +232,7 @@ make install ARGS="--binaries build --slate-dir ../slate-agent-kit"   # options 
 ### Requirements
 
 - Linux, macOS or Windows. Rust is needed only for `--binaries build`.
-- The backend CLIs, installed separately (the servers only wrap them): [codex](https://github.com/openai/codex), [copilot](https://docs.github.com/copilot/how-tos/copilot-cli) (GitHub's standalone Copilot CLI, not `gh copilot`), [Claude Code](https://claude.com/claude-code), and [OpenCode](https://opencode.ai/docs/cli/) for dispatch. `aside_list` and `dispatch_backends` report which are present; a missing one is reported as unavailable, not as an error.
+- The backend CLIs, installed separately (the servers only wrap them): [codex](https://github.com/openai/codex), [Claude Code](https://claude.com/claude-code), and [OpenCode](https://opencode.ai/docs/cli/) for dispatch. `aside_list` and `dispatch_backends` report which are present; a missing one is reported as unavailable, not as an error.
 
 ## Kit Layout
 
