@@ -1,7 +1,7 @@
 <!-- slate-agent-kit:common -->
 # Kimi Agent Operating Manual
 
-**Version**: 0.10.1
+**Version**: 0.11.0
 **Last Updated**: 2026-09-30
 
 > Rules for Kimi Code CLI agents, in articles: one norm each, with the test that decides whether it was kept. Articles are cited by number (`§ 6`) and defined once, here; a new one takes the next free number or a letter suffix, and numbers never move. How to use a tool is the harness's and the tool's job.

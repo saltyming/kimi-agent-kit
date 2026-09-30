@@ -1,7 +1,7 @@
 kit = "kimi-agent-kit"
 harness = "kimi"
-version = "0.10.1"
-slate_version = "0.9.1"
+version = "0.11.0"
+slate_version = "0.10.0"
 primary = "AGENTS.md"
 load = "concat"
 rules = [ "kimi-agent-kit--kimi-surface.md", "kimi-agent-kit--task-execution.md", "kimi-agent-kit--palette.md", "kimi-agent-kit--delegation.md", "kimi-agent-kit--git-workflow.md", "kimi-agent-kit--aside.md", "kimi-agent-kit--dispatch.md" ]
