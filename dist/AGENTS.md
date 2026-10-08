@@ -1,7 +1,7 @@
 <!-- slate-agent-kit:common -->
 # Kimi Agent Operating Manual
 
-**Version**: 0.11.2
+**Version**: 0.11.3
 **Last Updated**: 2026-10-08
 
 > Rules for Kimi Code CLI agents, in articles: one norm each, with the test that decides whether it was kept. Articles are cited by number (`§ 6`) and defined once, here; a new one takes the next free number or a letter suffix, and numbers never move. How to use a tool is the harness's and the tool's job.
@@ -11,6 +11,7 @@
 
 - `kimi-agent-kit--task-execution.md`: the execution loop, undo, destructive git.
 - `kimi-agent-kit--delegation.md`: subagents and the other ways work leaves the session.
+- `kimi-agent-kit--models.md`: which model and effort a delegate, a dispatch step or a consultation runs on.
 - `kimi-agent-kit--palette.md`: the palette document system, active only where `_palette/` exists.
 - `kimi-agent-kit--aside.md`, `kimi-agent-kit--dispatch.md`: consulting another model family; handing a step to `dispatch`.
 - `kimi-agent-kit--git-workflow.md`: the user's git preferences.

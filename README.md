@@ -25,10 +25,11 @@ Kimi Code loads a single user-scope `$KIMI_CODE_HOME/AGENTS.md` that applies to 
 - `kimi-agent-kit--task-execution.md`: the execution loop, undo and destructive git.
 - `kimi-agent-kit--palette.md`: the palette document system.
 - `kimi-agent-kit--delegation.md`: subagents and the other ways work leaves the session, with the Kimi delegation surfaces.
+- `kimi-agent-kit--models.md`: which model and effort a delegate, a dispatch step or a consultation runs on, with the Kimi Code models.
 - `kimi-agent-kit--git-workflow.md`: how your git preferences are read, asked for and recorded.
 - `kimi-agent-kit--aside.md` and `kimi-agent-kit--dispatch.md`: when consultation and dispatch are worth using.
 
-The manual and rule files come to about 25 KB; skills and prefs are outside `AGENTS.md` and load only when used.
+The manual and rule files come to about 28 KB; skills and prefs are outside `AGENTS.md` and load only when used.
 
 **Kimi surface.** The servers reach Kimi Code as the local plugin `slate-agent-kit-mcp`, so tool names are plugin-prefixed and differ from the plain names other harnesses use, for example `mcp__plugin-slate-agent-kit-mcp_aside__aside_list` and `mcp__plugin-slate-agent-kit-mcp_palette__palette_status`. Skills are scanned natively from `$KIMI_CODE_HOME/skills`. If the plugin is not installed, the agent says the tool surface is missing and does not pretend a call was made.
 
