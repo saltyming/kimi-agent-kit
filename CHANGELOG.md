@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.2 - 2026-10-08
+
+**Version alignment with claude-agent-kit 13.3.2.** Ships alongside claude-agent-kit 13.3.2, codex-agent-kit 0.11.2 and slate-agent-kit v0.10.2. The rules of this kit are unchanged; the servers and the installer are unchanged.
+
+- **Manual.** `Last Updated` is 2026-10-08.
+- **Entry points.** `install.sh` and `install.ps1` download `slate-setup` from slate release v0.10.2.
+
+Verified: `sh tooling/render-kit.sh` for all three kits, `sh tooling/validate.sh` (`validate: OK`, including `palette check` on the slate repository), and an install of each kit into a scratch `HOME` with `--binaries skip` (exit 0, the manual at the new version). Not run: Rust tests and clippy (no Rust source changed).
+
 ## 0.11.1 - 2026-10-03
 
 **A delegate starts no delegate of its own unless its prompt grants it.** Ships alongside claude-agent-kit 13.3.1, codex-agent-kit 0.11.1 and slate-agent-kit v0.10.1. Rules only; the servers and the installer are unchanged.
