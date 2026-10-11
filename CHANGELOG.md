@@ -1,5 +1,20 @@
 # Changelog
 
+## 26.10.0 (contract 1) - 2026-10-11
+
+**The manual is a constitution with a preamble, a reply leaves the decision with the user, and the three kits share one version.** Ships alongside claude-agent-kit 26.10.0, codex-agent-kit 26.10.0 and slate-agent-kit v26.10.0 (slate RFC-0018). Rules, descriptor and installer change; the servers change only in version.
+
+- **Preamble.** `AGENTS.md` opens with a preamble stating the intent the articles derive from: the person sets what is done, in what order, what counts as done and which choices stay theirs; the agent chooses method and delivers the approved scope whole, verified and reported as the files would show it; a proposal is shown with its grounds and stays a proposal until the person decides. The preamble guides interpretation where the rules leave a choice; it overrides no article, grants no authorization and changes nothing the harness reserves to itself.
+- **§ 19 (4).** An answer to a question is not approval of the agent's next action. A proposal carries the grounds the user needs to judge it, with the uncertainty and the trade-off, and in a deliberative reply the grounds come before the course of action; no command, label or emphasis presents an unapproved proposal as settled; structure and length follow the question. One before/after example; the test gains the two matching failures.
+- **Articles trimmed to norm and test.** § 8 keeps the levels and their precedence; what each level does is stated once, in the delegation rule. § 11 keeps the norm; the undo phrases move to the execution rule. § 13 keeps the named command and the full-line authorization; the command list and the pre-flight move to the git rule, out of the execution rule. § 21 keeps its three obligations; what memory never holds and how a correction becomes rule text move to the execution rule. No obligation is dropped (RFC-0018, Design).
+- **Surface rule.** `kimi-agent-kit--kimi-surface.md` gains a Standing Instruction paragraph (the manual is the user's standing instruction and settles the choices Kimi Code leaves to the user; it changes nothing the harness reserves to itself) and the memory binding that was an insert in `AGENTS.md`. `AGENTS.md` now carries no harness-specific text and is the same text in every kit apart from file names.
+- **Corpus budget.** The standing corpus grows by the preamble, § 19 (4) and the surface rule's frame; this kit's byte ceiling in `validate.sh` is raised from 28500 to 30500 bytes (measured 30381).
+- **Descriptor.** `dist/kit.toml` gains `contract = 1`: the compatibility line of the descriptor, the manifest, the prefs and the server interfaces; the installer records it in the manifest and reads a descriptor without it as contract 1. The release number alone no longer signals compatibility.
+- **Version.** Numbering joins the slate release's: `YY.MM.N`, one number for the three kits, the slate release and the workspace crates (slate RFC-0018; `docs/contributing.rst`, Branches).
+- **Entry points.** `install.sh` and `install.ps1` download `slate-setup` from slate release v26.10.0.
+
+Verified: `sh tooling/render-kit.sh` for all three kits; `sh tooling/validate.sh` (`validate: OK`, including `palette check` on the slate repository); `cargo test --workspace`, `cargo clippy --workspace --all-targets --all-features -- -D warnings` and `cargo fmt --all -- --check` on rustc 1.99.0; and an upgrade of each kit from its previous release into a scratch `HOME` with `--binaries skip` (exit 0, the stale rule file removed, a `-custom:` prefs file unchanged byte for byte, the manifest at `26.10.0` with `contract = 1`). Not run: the behavioural comparison of the preamble (RFC-0018, Verification strategy).
+
 ## 0.11.3 - 2026-10-08
 
 **Each kit names its vendor's models and the effort each kind of work starts at.** Ships alongside claude-agent-kit 13.3.3, codex-agent-kit 0.11.3 and slate-agent-kit v0.10.3 (slate RFC-0017). Rules only; the servers and the installer are unchanged.

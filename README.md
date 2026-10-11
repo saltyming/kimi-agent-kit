@@ -2,7 +2,7 @@
 
 An operating manual and rule set for the Kimi Code CLI (`AGENTS.md` plus rule files), the palette document system with its skills, and three shared MCP servers: `aside` (second opinions from another model family), `dispatch` (asynchronous execution by a codex, opencode or claude backend) and `palette` (reads, checks and writes palette documents). One installer, `slate-setup`, installs all of it, registers the servers as a Kimi plugin, writes your preferences and sets the subagent default model.
 
-This is kimi-agent-kit 0.11.2. Its rules, skills, templates and prefs templates are rendered from [`slate-agent-kit`](https://github.com/saltyming/slate-agent-kit), which also builds the servers and the installer; its release v0.10.2 provides the binaries. The Claude and Codex kits are rendered from the same source and differ only where the harness does.
+This is kimi-agent-kit 26.10.0 (contract 1). Its rules, skills, templates and prefs templates are rendered from [`slate-agent-kit`](https://github.com/saltyming/slate-agent-kit), which also builds the servers and the installer; its release v26.10.0 provides the binaries; the three kits and the slate release share one version, `YY.MM.N`, and the contract number alone says whether an installed kit stays compatible. The Claude and Codex kits are rendered from the same source and differ only where the harness does.
 
 ## What's Inside
 
@@ -21,15 +21,15 @@ This is kimi-agent-kit 0.11.2. Its rules, skills, templates and prefs templates 
 
 Kimi Code loads a single user-scope `$KIMI_CODE_HOME/AGENTS.md` that applies to every project, so the installer writes that file as the manual followed by every rule file and your custom rules, each separated by a `---` line. The copies in `$KIMI_CODE_HOME/rules/` are reference material. The rule files:
 
-- `kimi-agent-kit--kimi-surface.md`: what differs in Kimi Code (see below).
-- `kimi-agent-kit--task-execution.md`: the execution loop, undo and destructive git.
+- `kimi-agent-kit--kimi-surface.md`: what differs in Kimi Code (see below), and the standing instruction: the manual settles the choices Kimi Code leaves to you and changes nothing the harness reserves to itself.
+- `kimi-agent-kit--task-execution.md`: the execution loop, undo and memory.
 - `kimi-agent-kit--palette.md`: the palette document system.
 - `kimi-agent-kit--delegation.md`: subagents and the other ways work leaves the session, with the Kimi delegation surfaces.
 - `kimi-agent-kit--models.md`: which model and effort a delegate, a dispatch step or a consultation runs on, with the Kimi Code models.
-- `kimi-agent-kit--git-workflow.md`: how your git preferences are read, asked for and recorded.
+- `kimi-agent-kit--git-workflow.md`: how your git preferences are read, asked for and recorded, and destructive git.
 - `kimi-agent-kit--aside.md` and `kimi-agent-kit--dispatch.md`: when consultation and dispatch are worth using.
 
-The manual and rule files come to about 28 KB; skills and prefs are outside `AGENTS.md` and load only when used.
+The manual and rule files come to about 30 KB; skills and prefs are outside `AGENTS.md` and load only when used.
 
 **Kimi surface.** The servers reach Kimi Code as the local plugin `slate-agent-kit-mcp`, so tool names are plugin-prefixed and differ from the plain names other harnesses use, for example `mcp__plugin-slate-agent-kit-mcp_aside__aside_list` and `mcp__plugin-slate-agent-kit-mcp_palette__palette_status`. Skills are scanned natively from `$KIMI_CODE_HOME/skills`. If the plugin is not installed, the agent says the tool surface is missing and does not pretend a call was made.
 
@@ -160,7 +160,7 @@ irm https://raw.githubusercontent.com/saltyming/kimi-agent-kit/main/install.ps1 
 
 The PowerShell script also accepts the earlier installers' switches: `-Uninstall`, `-SkipMcp` and `-DispatchRoots <paths>`.
 
-The entry point downloads the prebuilt `slate-setup` for your platform from slate release v0.10.2, verifies its checksum, and runs it on the kit's payload. `slate-setup` performs every step, with the same code on Linux, macOS and Windows.
+The entry point downloads the prebuilt `slate-setup` for your platform from slate release v26.10.0, verifies its checksum, and runs it on the kit's payload. `slate-setup` performs every step, with the same code on Linux, macOS and Windows.
 
 | Command | Does |
 |---|---|
@@ -170,7 +170,7 @@ The entry point downloads the prebuilt `slate-setup` for your platform from slat
 
 | Option | Meaning |
 |---|---|
-| `--binaries prebuilt\|build\|skip` | `prebuilt` (default) downloads `aside`, `dispatch` and `palette`, and on Linux and macOS `agent-guard`, from the slate release, checked against `checksums.txt` (if release v0.10.2 does not exist it uses the latest and says so). `build` runs `cargo build --release` in `--slate-dir` and needs Rust. `skip` installs no binaries and registers no servers. `--skip-mcp` still works. |
+| `--binaries prebuilt\|build\|skip` | `prebuilt` (default) downloads `aside`, `dispatch` and `palette`, and on Linux and macOS `agent-guard`, from the slate release, checked against `checksums.txt` (if release v26.10.0 does not exist it uses the latest and says so). `build` runs `cargo build --release` in `--slate-dir` and needs Rust. `skip` installs no binaries and registers no servers. `--skip-mcp` still works. |
 | `--slate-dir <dir>` | The slate checkout to build from. |
 | `--roots <paths>` | Workspace roots dispatch and palette may work in, as an OS path list. When it is not given, the `DISPATCH_ROOTS` environment variable is used. Kimi needs one (see above). |
 | `--set <key>=<value>` | Pre-answers a prefs question; repeatable. Keys are `<file>.<key>`, for example `aside.level=auto` or `git.signing=no-gpg-sign`. |
