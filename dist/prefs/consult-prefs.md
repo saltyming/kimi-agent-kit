@@ -1,7 +1,7 @@
-<!-- kimi-agent-kit-custom:aside-prefs -->
-# Aside Preferences
+<!-- kimi-agent-kit-custom:consult-prefs -->
+# Consultation Preferences
 
-> User-owned (`kimi-agent-kit-custom:aside-prefs`): uninstall and upgrade keep it. Set by the configure step or by hand.
+> User-owned (`kimi-agent-kit-custom:consult-prefs`): uninstall and upgrade keep it. Set by the configure step or by hand.
 
 ## Level
 

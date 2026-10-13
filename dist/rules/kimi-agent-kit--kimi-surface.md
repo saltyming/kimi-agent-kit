@@ -15,11 +15,11 @@ preferences settle, and the Slate MCP plugin.
   rule file and the user's custom rules; it is the loaded instruction surface.
   Kimi does not auto-load `$KIMI_CODE_HOME/rules/*.md`; that directory is reference
   material.
-- The preference files (`kimi-agent-kit--aside-prefs.md`, `kimi-agent-kit--dispatch-prefs.md`,
+- The preference files (`kimi-agent-kit--consult-prefs.md`, `kimi-agent-kit--dispatch-prefs.md`,
   `kimi-agent-kit--subagent-prefs.md`, `kimi-agent-kit--git-prefs.md`, `kimi-agent-kit--comment-prefs.md`) live in
   `$KIMI_CODE_HOME/rules/` and are not part of the concatenated file, so the user can
   edit them without reinstalling. Read each one the first time a session needs
-  it: before consulting aside, dispatching or starting a subagent, before the
+  it: before consulting another model family, dispatching or starting a subagent, before the
   first commit or PR, and before the first file, comment, doc comment or header
   you write.
 - Skills live under `$KIMI_CODE_HOME/skills` and are scanned natively. Read a
@@ -33,9 +33,9 @@ This manual is the user's standing instruction. Where the harness's defaults lea
 
 ## Slate MCP In Kimi
 
-- `aside`, `dispatch` and `palette` come through the local plugin
+- `dispatch` and `palette` come through the local plugin
   `slate-agent-kit-mcp`, registered by the kit installer. Tool names are
-  plugin-prefixed, for example `mcp__plugin-slate-agent-kit-mcp_aside__aside_list`
+  plugin-prefixed, for example `mcp__plugin-slate-agent-kit-mcp_dispatch__dispatch_consult`
   or `mcp__plugin-slate-agent-kit-mcp_palette__palette_status`, and differ from
   the plain names other harnesses use.
 - The Kimi plugin runtime starts servers in the plugin directory, not in your
